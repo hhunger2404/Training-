@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Training">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#2196F3">
+    <meta name="description" content="Training Tracker - Verfolge deine Trainingseinheiten">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- iOS Icon -->
+    <link rel="apple-touch-icon" href="icons/icon.svg">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+
+    <title>Training Tracker</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            padding-top: env(safe-area-inset-top, 20px);
+            padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+            min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 { font-size: 28px; margin-bottom: 20px; color: #333; }
+        h2 { font-size: 20px; margin-bottom: 15px; color: #555; }
+        .decision-box {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #2196F3;
+        }
+        .decision-box.success { background: #e8f5e9; border-left-color: #4CAF50; }
+        .decision-box.warning { background: #fff3e0; border-left-color: #FF9800; }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.1s;
+            -webkit-appearance: none;
+        }
+        .btn:active { transform: scale(0.98); opacity: 0.9; }
+        .btn-primary { background: #2196F3; color: white; }
+        .btn-success { background: #4CAF50; color: white; }
+        .btn-warning { background: #FF9800; color: white; }
+        .btn-secondary { background: #9E9E9E; color: white; }
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
+        .stat-box { background: #f5f5f5; padding: 15px; border-radius: 8px; text-align: center; }
+        .stat-number { font-size: 32px; font-weight: bold; }
+        .stat-label { font-size: 12px; color: #666; margin-top: 5px; }
+        .nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: flex;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        .nav-btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            background: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+            -webkit-appearance: none;
+        }
+        .nav-btn.active { background: #2196F3; color: white; font-weight: 600; }
+        .view { display: none; }
+        .view.active { display: block; }
+
+        /* Offline Indicator */
+        .offline-indicator {
+            display: none;
+            background: #f44336;
+            color: white;
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+        .offline-indicator.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="offline-indicator" id="offlineIndicator">Offline - Daten werden lokal gespeichert</div>
+
+    <div class="container">
+        <h1>Training Tracker</h1>
+        <div id="decisionView" class="view active">
+            <div class="card" id="decisionCard"></div>
+        </div>
+        <div id="logView" class="view">
+            <div class="card">
+                <h2>Log</h2>
+                <div id="logContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="nav">
+        <button class="nav-btn active" onclick="showView('decision')">Heute</button>
+        <button class="nav-btn" onclick="showView('log')">Log</button>
+    </div>
+
+    <script>
+        // Training Types
+        const T = {
+            A: 'Kraft A',
+            B: 'Kraft B',
+            I: 'Intervall',
+            M: 'Moderat',
+            F: 'Frei'
+        };
+
+        let step = 1;
+
+        // LocalStorage functions
+        function getT() {
+            const d = localStorage.getItem('t');
+            return d ? JSON.parse(d) : [];
+        }
+
+        function saveT(t) {
+            localStorage.setItem('t', JSON.stringify(t));
+        }
+
+        function getLK() {
+            return localStorage.getItem('lk') || 'A';
+        }
+
+        function setLK(t) {
+            localStorage.setItem('lk', t);
+        }
+
+        // Add training
+        function addT(type) {
+            const today = new Date().toISOString().split('T')[0];
+            const trainings = getT();
+            const filtered = trainings.filter(t => t.date !== today);
+            filtered.unshift({
+                date: today,
+                type: type,
+                timestamp: Date.now()
+            });
+            saveT(filtered);
+
+            if (type === T.A) setLK('A');
+            else if (type === T.B) setLK('B');
+
+            step = 1;
+            render();
+            updateLog();
+        }
+
+        // Get yesterday's date
+        function getY() {
+            const d = new Date();
+            d.setDate(d.getDate() - 1);
+            return d.toISOString().split('T')[0];
+        }
+
+        // Get last training (yesterday)
+        function getLastT() {
+            return getT().find(t => t.date === getY());
+        }
+
+        // Get stats for last 7 days
+        function getStats() {
+            const d7 = new Date();
+            d7.setDate(d7.getDate() - 7);
+            const recent = getT().filter(t => new Date(t.date) >= d7);
+            return {
+                k: recent.filter(t => t.type === T.A || t.type === T.B).length,
+                i: recent.filter(t => t.type === T.I).length,
+                m: recent.filter(t => t.type === T.M).length
+            };
+        }
+
+        // Main render function
+        function render() {
+            const c = document.getElementById('decisionCard');
+
+            if (step === 1) {
+                c.innerHTML = `
+                    <h2>Trainiere ich heute?</h2>
+                    <div class="decision-box">
+                        <p style="font-size:18px">Brauchst du heute frei?</p>
+                    </div>
+                    <button class="btn btn-secondary" onclick="addT('${T.F}')">Ja, frei</button>
+                    <button class="btn btn-primary" onclick="step=2;render()">Nein, ich trainiere</button>
+                `;
+            } else {
+                const last = getLastT();
+                const s = getStats();
+
+                if (last && (last.type.includes('Kraft') || last.type === T.I)) {
+                    c.innerHTML = `
+                        <h2>Was kann ich machen?</h2>
+                        <div class="decision-box warning">
+                            <p><strong>Gestern:</strong> ${last.type}</p>
+                            <p>Nur moderates Cardio möglich.</p>
+                        </div>
+                        <button class="btn btn-success" onclick="addT('${T.M}')">Moderates Cardio</button>
+                        <button class="btn btn-secondary" onclick="step=1;render()">Zurück</button>
+                    `;
+                } else {
+                    const lk = getLK();
+                    const nk = lk === 'A' ? 'B' : 'A';
+                    const nt = nk === 'A' ? T.A : T.B;
+
+                    let h = `<h2>Was machen?</h2>`;
+
+                    if (last) {
+                        h += `<div class="decision-box success"><p><strong>Gestern:</strong> ${last.type}</p></div>`;
+                    }
+
+                    h += `
+                        <div class="stats">
+                            <div class="stat-box">
+                                <div class="stat-number" style="color:${s.k >= 2 ? '#4CAF50' : '#f44336'}">${s.k}</div>
+                                <div class="stat-label">Kraft (2)</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number" style="color:${s.i >= 2 ? '#4CAF50' : '#f44336'}">${s.i}</div>
+                                <div class="stat-label">Intervall (2)</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number" style="color:${s.m >= 2 ? '#4CAF50' : '#f44336'}">${s.m}</div>
+                                <div class="stat-label">Moderat (2)</div>
+                            </div>
+                        </div>
+                        <div style="margin-top:20px">
+                    `;
+
+                    if (s.k < 2) h += `<button class="btn btn-primary" onclick="addT('${nt}')">Krafttraining ${nk}</button>`;
+                    if (s.i < 2) h += `<button class="btn btn-warning" onclick="addT('${T.I}')">Intervall-Cardio</button>`;
+                    if (s.m < 2) h += `<button class="btn btn-success" onclick="addT('${T.M}')">Moderates Cardio</button>`;
+
+                    if (s.k >= 2 && s.i >= 2 && s.m >= 2) {
+                        h += `
+                            <div class="decision-box success"><p>Alle Ziele erreicht!</p></div>
+                            <button class="btn btn-primary" onclick="addT('${nt}')">Kraft ${nk}</button>
+                            <button class="btn btn-warning" onclick="addT('${T.I}')">Intervall</button>
+                            <button class="btn btn-success" onclick="addT('${T.M}')">Moderat</button>
+                        `;
+                    }
+
+                    h += `<button class="btn btn-secondary" onclick="step=1;render()">Zurück</button></div>`;
+                    c.innerHTML = h;
+                }
+            }
+        }
+
+        // Update log view
+        function updateLog() {
+            const ts = getT();
+            const lc = document.getElementById('logContent');
+
+            if (ts.length === 0) {
+                lc.innerHTML = '<p style="text-align:center;color:#999;padding:20px">Noch keine Trainings</p>';
+                return;
+            }
+
+            const days = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+            let h = '';
+
+            ts.slice(0, 14).forEach(t => {
+                const d = new Date(t.date);
+                h += `<p style="padding:10px;border-bottom:1px solid #eee">${days[d.getDay()]} ${d.getDate()}.${d.getMonth() + 1}. - ${t.type}</p>`;
+            });
+
+            lc.innerHTML = h;
+        }
+
+        // View switching
+        function showView(v) {
+            document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+            if (v === 'decision') {
+                document.getElementById('decisionView').classList.add('active');
+                document.querySelectorAll('.nav-btn')[0].classList.add('active');
+                step = 1;
+                render();
+            } else {
+                document.getElementById('logView').classList.add('active');
+                document.querySelectorAll('.nav-btn')[1].classList.add('active');
+                updateLog();
+            }
+        }
+
+        // Offline detection
+        function updateOnlineStatus() {
+            const indicator = document.getElementById('offlineIndicator');
+            if (!navigator.onLine) {
+                indicator.classList.add('show');
+            } else {
+                indicator.classList.remove('show');
+            }
+        }
+
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+
+        // Initialize
+        render();
+        updateLog();
+        updateOnlineStatus();
+    </script>
+</body>
+</html>
