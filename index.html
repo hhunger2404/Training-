@@ -160,7 +160,7 @@
     <div class="offline-bar" id="offlineBar">Offline – Daten lokal gespeichert</div>
 
     <div class="container">
-        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#bbb">v2.1</span></h1>
+        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#bbb">v2.2</span></h1>
 
         <div id="decisionView" class="view active">
             <div class="card" id="decisionCard"></div>
@@ -168,7 +168,11 @@
 
         <div id="logView" class="view">
             <div class="card">
-                <h2>Log</h2>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+                    <h2 style="margin:0">Log</h2>
+                    <button class="icon-btn" onclick="startAdd()" style="width:auto;padding:6px 12px;font-size:13px;font-weight:600;background:#4CAF50;color:white">+ Nachtragen</button>
+                </div>
+                <div id="addForm" style="display:none"></div>
                 <div id="logContent"></div>
             </div>
         </div>
@@ -335,12 +339,19 @@
                     </div>
                 </div>`;
                 if (editingDate === entry.date) {
-                    h += `<div class="edit-row">`;
+                    h += `<div class="edit-row" style="flex-direction:column;gap:10px">
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <label style="font-size:13px;color:#666;white-space:nowrap">Datum:</label>
+                            <input type="date" id="editDateInput" value="${entry.date}"
+                                style="border:1px solid #ddd;border-radius:6px;padding:5px 8px;font-size:14px;flex:1">
+                        </div>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px">`;
                     ALL_TYPES.forEach(t => {
                         h += `<button class="edit-chip" style="background:${COLOR[t]}"
                             onclick="applyEdit('${entry.date}','${t}')">${t}</button>`;
                     });
-                    h += `<button class="edit-cancel" onclick="cancelEdit()">Abbrechen</button></div>`;
+                    h += `<button class="edit-cancel" onclick="cancelEdit()">Abbrechen</button>
+                        </div></div>`;
                 }
             });
             lc.innerHTML = h;
@@ -354,18 +365,58 @@
             editingDate = null;
             updateLog();
         }
-        function applyEdit(date, newType) {
-            const all = getAll().map(e => e.date === date ? { ...e, type: newType } : e);
+        function applyEdit(oldDate, newType) {
+            const newDate = document.getElementById('editDateInput')?.value || oldDate;
+            const all = getAll()
+                .filter(e => e.date !== newDate || e.date === oldDate) // remove collision on new date
+                .map(e => e.date === oldDate ? { ...e, date: newDate, type: newType } : e);
+            // re-sort by date desc
+            all.sort((a, b) => b.date.localeCompare(a.date));
             saveAll(all);
             editingDate = null;
             updateLog();
-            if (date === todayStr()) render();
+            render();
         }
         function deleteEntry(date) {
             saveAll(getAll().filter(e => e.date !== date));
             if (editingDate === date) editingDate = null;
             updateLog();
             if (date === todayStr()) render();
+        }
+
+        // ── Add past entry ───────────────────────────────────────────────
+        function startAdd() {
+            const f = document.getElementById('addForm');
+            f.style.display = 'block';
+            f.innerHTML = `<div style="background:#f9f9f9;border-radius:10px;padding:14px;margin-bottom:14px">
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+                    <label style="font-size:13px;color:#666;white-space:nowrap">Datum:</label>
+                    <input type="date" id="newDateInput" value="${todayStr()}"
+                        style="border:1px solid #ddd;border-radius:6px;padding:5px 8px;font-size:14px;flex:1">
+                </div>
+                <p style="font-size:12px;color:#aaa;margin-bottom:8px">Training auswählen:</p>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                    ${ALL_TYPES.map(t => `<button class="edit-chip" style="background:${COLOR[t]}"
+                        onclick="confirmAdd('${t}')">${t}</button>`).join('')}
+                    <button class="edit-cancel" onclick="cancelAdd()">Abbrechen</button>
+                </div>
+            </div>`;
+        }
+        function confirmAdd(type) {
+            const date = document.getElementById('newDateInput')?.value;
+            if (!date) return;
+            const all = getAll().filter(e => e.date !== date);
+            all.push({ date, type, ts: Date.now() });
+            all.sort((a, b) => b.date.localeCompare(a.date));
+            saveAll(all);
+            cancelAdd();
+            updateLog();
+            render();
+        }
+        function cancelAdd() {
+            const f = document.getElementById('addForm');
+            f.style.display = 'none';
+            f.innerHTML = '';
         }
 
         // ── Navigation ───────────────────────────────────────────────────
