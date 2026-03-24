@@ -160,7 +160,7 @@
     <div class="offline-bar" id="offlineBar">Offline – Daten lokal gespeichert</div>
 
     <div class="container">
-        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#bbb">v2.2</span></h1>
+        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#bbb">v2.3</span></h1>
 
         <div id="decisionView" class="view active">
             <div class="card" id="decisionCard"></div>
@@ -206,13 +206,20 @@
 
         // ── Storage ──────────────────────────────────────────────────────
         function getAll() {
-            try { return JSON.parse(localStorage.getItem('ppl_log') || '[]'); } catch { return []; }
+            try {
+                const data = JSON.parse(localStorage.getItem('ppl_log') || '[]');
+                return data.sort((a, b) => b.date.localeCompare(a.date)); // immer nach Datum sortiert
+            } catch { return []; }
         }
-        function saveAll(a) { localStorage.setItem('ppl_log', JSON.stringify(a)); }
+        function saveAll(a) {
+            const sorted = [...a].sort((x, y) => y.date.localeCompare(x.date));
+            localStorage.setItem('ppl_log', JSON.stringify(sorted));
+        }
         function todayStr() { return new Date().toISOString().split('T')[0]; }
         function getTodayEntry() { return getAll().find(t => t.date === todayStr()) || null; }
-        function getLastEntry() { return getAll()[0] || null; }
-        function getLastPPL() { return getAll().find(t => PPL.includes(t.type)) || null; }
+        // Empfehlung basiert immer auf Einträgen VOR heute
+        function getLastEntry() { const t = todayStr(); return getAll().find(e => e.date < t) || null; }
+        function getLastPPL() { const t = todayStr(); return getAll().find(e => e.date < t && PPL.includes(e.type)) || null; }
         function nextPPL(type) { return PPL[(PPL.indexOf(type) + 1) % PPL.length]; }
 
         function logTraining(type) {
