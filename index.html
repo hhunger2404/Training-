@@ -4,18 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 
-    <!-- PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Training">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#4CAF50">
-    <meta name="description" content="Training Tracker - Verfolge deine Trainingseinheiten">
+    <meta name="description" content="Training Tracker - PPL">
 
-    <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
-
-    <!-- iOS Icon -->
     <link rel="apple-touch-icon" href="icons/icon.svg">
     <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
 
@@ -41,20 +37,27 @@
         }
         h1 { font-size: 28px; margin-bottom: 20px; color: #333; }
         h2 { font-size: 20px; margin-bottom: 15px; color: #555; }
-        .decision-box {
-            background: #e8f5e9;
-            padding: 20px;
+        .info-box {
+            padding: 15px;
             border-radius: 8px;
             margin-bottom: 15px;
             border-left: 4px solid #4CAF50;
+            background: #e8f5e9;
         }
-        .decision-box.success { background: #e8f5e9; border-left-color: #4CAF50; }
-        .decision-box.warning { background: #fff3e0; border-left-color: #FF9800; }
+        .info-box.warn {
+            background: #fff3e0;
+            border-left-color: #FF9800;
+        }
+        .info-box.alert {
+            background: #fce4ec;
+            border-left-color: #e91e63;
+        }
+        .info-box p { font-size: 15px; line-height: 1.5; }
         .btn {
             display: block;
             width: 100%;
             padding: 15px;
-            margin: 10px 0;
+            margin: 8px 0;
             border: none;
             border-radius: 8px;
             font-size: 16px;
@@ -62,21 +65,36 @@
             cursor: pointer;
             transition: transform 0.1s, opacity 0.1s;
             -webkit-appearance: none;
+            text-align: left;
         }
         .btn:active { transform: scale(0.98); opacity: 0.9; }
-        .btn-primary { background: #4CAF50; color: white; }
-        .btn-success { background: #4CAF50; color: white; }
-        .btn-warning { background: #FF9800; color: white; }
-        .btn-secondary { background: #9E9E9E; color: white; }
-        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
-        .stat-box { background: #f5f5f5; padding: 15px; border-radius: 8px; text-align: center; }
-        .stat-number { font-size: 32px; font-weight: bold; }
-        .stat-label { font-size: 12px; color: #666; margin-top: 5px; }
+        .btn-push   { background: #1976D2; color: white; }
+        .btn-pull   { background: #7B1FA2; color: white; }
+        .btn-legs   { background: #388E3C; color: white; }
+        .btn-core   { background: #F57C00; color: white; }
+        .btn-rest   { background: #9E9E9E; color: white; }
+        .btn-back   { background: #eeeeee; color: #333; margin-top: 15px; }
+        .btn span.label { font-size: 12px; font-weight: 400; display: block; opacity: 0.85; margin-top: 2px; }
+        .cycle-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        .cycle-item {
+            flex: 1;
+            text-align: center;
+            padding: 10px 4px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #f0f0f0;
+            color: #999;
+        }
+        .cycle-item.done { background: #c8e6c9; color: #2e7d32; }
+        .cycle-item.next { background: #1976D2; color: white; }
         .nav {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            bottom: 0; left: 0; right: 0;
             background: white;
             display: flex;
             box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
@@ -89,14 +107,25 @@
             background: white;
             font-size: 14px;
             cursor: pointer;
-            transition: background 0.2s;
             -webkit-appearance: none;
         }
         .nav-btn.active { background: #4CAF50; color: white; font-weight: 600; }
         .view { display: none; }
         .view.active { display: block; }
-
-        /* Offline Indicator */
+        .log-entry {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .log-dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .log-date { font-size: 13px; color: #888; min-width: 70px; }
+        .log-type { font-size: 15px; font-weight: 500; }
         .offline-indicator {
             display: none;
             background: #f44336;
@@ -105,16 +134,14 @@
             padding: 8px;
             font-size: 12px;
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 0; left: 0; right: 0;
             z-index: 1000;
         }
         .offline-indicator.show { display: block; }
     </style>
 </head>
 <body>
-    <div class="offline-indicator" id="offlineIndicator">Offline - Daten werden lokal gespeichert</div>
+    <div class="offline-indicator" id="offlineIndicator">Offline – Daten lokal gespeichert</div>
 
     <div class="container">
         <h1>Training Tracker</h1>
@@ -135,176 +162,293 @@
     </div>
 
     <script>
-        // Training Types
+        // ── Training types ──────────────────────────────────────────────
         const T = {
-            A: 'Kraft A',
-            B: 'Kraft B',
-            I: 'Intervall',
-            M: 'Moderat',
-            F: 'Frei'
+            PUSH: 'Push',
+            PULL: 'Pull',
+            LEGS: 'Legs',
+            CORE: 'Bauch/Po + Cardio',
+            REST: 'Pause'
         };
 
-        let step = 1;
+        const PPL = [T.PUSH, T.PULL, T.LEGS];
 
-        // LocalStorage functions
-        function getT() {
-            const d = localStorage.getItem('t');
+        const COLOR = {
+            [T.PUSH]: '#1976D2',
+            [T.PULL]: '#7B1FA2',
+            [T.LEGS]: '#388E3C',
+            [T.CORE]: '#F57C00',
+            [T.REST]: '#9E9E9E'
+        };
+
+        const SUB = {
+            [T.PUSH]: 'Brust · Schultern · Trizeps',
+            [T.PULL]: 'Rücken · Bizeps',
+            [T.LEGS]: 'Beine · Gesäß',
+            [T.CORE]: 'Bauch · Po · leichtes Cardio',
+            [T.REST]: 'Erholung'
+        };
+
+        // ── Storage ─────────────────────────────────────────────────────
+        function getAll() {
+            const d = localStorage.getItem('ppl_log');
             return d ? JSON.parse(d) : [];
         }
 
-        function saveT(t) {
-            localStorage.setItem('t', JSON.stringify(t));
+        function saveAll(arr) {
+            localStorage.setItem('ppl_log', JSON.stringify(arr));
         }
 
-        function getLK() {
-            return localStorage.getItem('lk') || 'A';
+        function todayStr() {
+            return new Date().toISOString().split('T')[0];
         }
 
-        function setLK(t) {
-            localStorage.setItem('lk', t);
+        function getTodayEntry() {
+            return getAll().find(t => t.date === todayStr());
         }
 
-        // Add training
-        function addT(type) {
-            const today = new Date().toISOString().split('T')[0];
-            const trainings = getT();
-            const filtered = trainings.filter(t => t.date !== today);
-            filtered.unshift({
-                date: today,
-                type: type,
-                timestamp: Date.now()
-            });
-            saveT(filtered);
+        function getLastEntry() {
+            // Most recent entry regardless of date
+            return getAll()[0] || null;
+        }
 
-            if (type === T.A) setLK('A');
-            else if (type === T.B) setLK('B');
+        function getLastPPL() {
+            return getAll().find(t => PPL.includes(t.type)) || null;
+        }
 
-            step = 1;
+        function nextPPL(type) {
+            const i = PPL.indexOf(type);
+            return PPL[(i + 1) % PPL.length];
+        }
+
+        function logTraining(type) {
+            const today = todayStr();
+            const all = getAll().filter(t => t.date !== today);
+            all.unshift({ date: today, type, ts: Date.now() });
+            saveAll(all);
             render();
             updateLog();
         }
 
-        // Get yesterday's date
-        function getY() {
-            const d = new Date();
-            d.setDate(d.getDate() - 1);
-            return d.toISOString().split('T')[0];
-        }
+        // ── Recommendation logic ─────────────────────────────────────────
+        // Rules:
+        //  - After LEGS: next must be PUSH (or REST) – never CORE
+        //  - PPL cycle: Push → Pull → Legs → Push …
+        //  - CORE fits between any two PPL sessions EXCEPT after LEGS
+        //  - Only 1 rest day per week
+        function getRecommendation() {
+            const lastEntry = getLastEntry();
+            const lastPPLEntry = getLastPPL();
 
-        // Get last training (yesterday)
-        function getLastT() {
-            return getT().find(t => t.date === getY());
-        }
+            if (!lastEntry) {
+                return { primary: T.PUSH, alt: [], note: 'Starte deinen ersten Zyklus!' };
+            }
 
-        // Get stats for last 7 days
-        function getStats() {
-            const d7 = new Date();
-            d7.setDate(d7.getDate() - 7);
-            const recent = getT().filter(t => new Date(t.date) >= d7);
-            return {
-                k: recent.filter(t => t.type === T.A || t.type === T.B).length,
-                i: recent.filter(t => t.type === T.I).length,
-                m: recent.filter(t => t.type === T.M).length
-            };
-        }
+            const last = lastEntry.type;
+            const lp = lastPPLEntry ? lastPPLEntry.type : T.LEGS; // treat as if last PPL was Legs → so next is Push
 
-        // Main render function
-        function render() {
-            const c = document.getElementById('decisionCard');
+            switch (last) {
+                case T.LEGS:
+                    return {
+                        primary: T.PUSH,
+                        alt: [T.REST],
+                        note: 'Nach Legs: direkt zu Push – kein Bauch/Po-Training!',
+                        warn: true
+                    };
 
-            if (step === 1) {
-                c.innerHTML = `
-                    <h2>Trainiere ich heute?</h2>
-                    <div class="decision-box">
-                        <p style="font-size:18px">Brauchst du heute frei?</p>
-                    </div>
-                    <button class="btn btn-secondary" onclick="addT('${T.F}')">Ja, frei</button>
-                    <button class="btn btn-primary" onclick="step=2;render()">Nein, ich trainiere</button>
-                `;
-            } else {
-                const last = getLastT();
-                const s = getStats();
+                case T.PUSH:
+                    return {
+                        primary: T.CORE,
+                        alt: [T.PULL],
+                        note: 'Kurze Core-Einheit oder direkt zu Pull.'
+                    };
 
-                if (last && (last.type.includes('Kraft') || last.type === T.I)) {
-                    c.innerHTML = `
-                        <h2>Was kann ich machen?</h2>
-                        <div class="decision-box warning">
-                            <p><strong>Gestern:</strong> ${last.type}</p>
-                            <p>Nur moderates Cardio möglich.</p>
-                        </div>
-                        <button class="btn btn-success" onclick="addT('${T.M}')">Moderates Cardio</button>
-                        <button class="btn btn-secondary" onclick="step=1;render()">Zurück</button>
-                    `;
-                } else {
-                    const lk = getLK();
-                    const nk = lk === 'A' ? 'B' : 'A';
-                    const nt = nk === 'A' ? T.A : T.B;
+                case T.PULL:
+                    return {
+                        primary: T.CORE,
+                        alt: [T.LEGS],
+                        note: 'Kurze Core-Einheit oder direkt zu Legs.'
+                    };
 
-                    let h = `<h2>Was machen?</h2>`;
-
-                    if (last) {
-                        h += `<div class="decision-box success"><p><strong>Gestern:</strong> ${last.type}</p></div>`;
-                    }
-
-                    h += `
-                        <div class="stats">
-                            <div class="stat-box">
-                                <div class="stat-number" style="color:${s.k >= 2 ? '#4CAF50' : '#f44336'}">${s.k}</div>
-                                <div class="stat-label">Kraft (2)</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="stat-number" style="color:${s.i >= 2 ? '#4CAF50' : '#f44336'}">${s.i}</div>
-                                <div class="stat-label">Intervall (2)</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="stat-number" style="color:${s.m >= 2 ? '#4CAF50' : '#f44336'}">${s.m}</div>
-                                <div class="stat-label">Moderat (2)</div>
-                            </div>
-                        </div>
-                        <div style="margin-top:20px">
-                    `;
-
-                    if (s.k < 2) h += `<button class="btn btn-primary" onclick="addT('${nt}')">Krafttraining ${nk}</button>`;
-                    if (s.i < 2) h += `<button class="btn btn-warning" onclick="addT('${T.I}')">Intervall-Cardio</button>`;
-                    if (s.m < 2) h += `<button class="btn btn-success" onclick="addT('${T.M}')">Moderates Cardio</button>`;
-
-                    if (s.k >= 2 && s.i >= 2 && s.m >= 2) {
-                        h += `
-                            <div class="decision-box success"><p>Alle Ziele erreicht!</p></div>
-                            <button class="btn btn-primary" onclick="addT('${nt}')">Kraft ${nk}</button>
-                            <button class="btn btn-warning" onclick="addT('${T.I}')">Intervall</button>
-                            <button class="btn btn-success" onclick="addT('${T.M}')">Moderat</button>
-                        `;
-                    }
-
-                    h += `<button class="btn btn-secondary" onclick="step=1;render()">Zurück</button></div>`;
-                    c.innerHTML = h;
+                case T.CORE: {
+                    // After Core: continue PPL cycle from last PPL
+                    const next = nextPPL(lp);
+                    return {
+                        primary: next,
+                        alt: [],
+                        note: `Weiter im Zyklus: ${next}.`
+                    };
                 }
+
+                case T.REST: {
+                    const next = nextPPL(lp);
+                    return {
+                        primary: next,
+                        alt: [T.CORE],
+                        note: 'Erholt? Weiter mit dem Plan.'
+                    };
+                }
+
+                default:
+                    return { primary: T.PUSH, alt: [], note: '' };
             }
         }
 
-        // Update log view
+        // ── Render today view ────────────────────────────────────────────
+        let confirming = false;
+
+        function render() {
+            const card = document.getElementById('decisionCard');
+            const todayEntry = getTodayEntry();
+
+            if (todayEntry) {
+                // Already logged today
+                card.innerHTML = `
+                    <h2>Heute erledigt</h2>
+                    <div class="info-box" style="border-left-color:${COLOR[todayEntry.type]}">
+                        <p><strong>${todayEntry.type}</strong></p>
+                        <p style="font-size:13px;color:#666;margin-top:4px">${SUB[todayEntry.type]}</p>
+                    </div>
+                    ${renderCycle()}
+                    <button class="btn btn-back" onclick="resetToday()">Eintrag ändern</button>
+                `;
+                return;
+            }
+
+            if (!confirming) {
+                // Step 1: decide if training today
+                card.innerHTML = `
+                    <h2>Trainiere ich heute?</h2>
+                    ${renderCycle()}
+                    <button class="btn btn-rest" onclick="logTraining('${T.REST}')">Nein – Pause</button>
+                    <button class="btn btn-push" style="background:#4CAF50" onclick="confirming=true;render()">Ja, ich trainiere</button>
+                `;
+            } else {
+                // Step 2: which workout
+                const rec = getRecommendation();
+                let h = `<h2>Was heute?</h2>`;
+
+                // Warning for post-Legs constraint
+                if (rec.warn) {
+                    h += `<div class="info-box alert"><p>${rec.note}</p></div>`;
+                } else if (rec.note) {
+                    h += `<div class="info-box"><p>${rec.note}</p></div>`;
+                }
+
+                h += renderCycle();
+
+                // Primary recommendation
+                const cls = btnClass(rec.primary);
+                h += `
+                    <p style="font-size:12px;color:#888;margin-bottom:6px;margin-top:4px">EMPFOHLEN</p>
+                    <button class="btn ${cls}" onclick="logTraining('${rec.primary}')">
+                        ${rec.primary}
+                        <span class="label">${SUB[rec.primary]}</span>
+                    </button>
+                `;
+
+                // Alt options
+                if (rec.alt.length) {
+                    h += `<p style="font-size:12px;color:#888;margin:10px 0 6px">ALTERNATIV</p>`;
+                    rec.alt.forEach(t => {
+                        h += `<button class="btn ${btnClass(t)}" onclick="logTraining('${t}')">
+                            ${t}
+                            <span class="label">${SUB[t]}</span>
+                        </button>`;
+                    });
+                }
+
+                h += `<button class="btn btn-back" onclick="confirming=false;render()">Zurück</button>`;
+                card.innerHTML = h;
+            }
+        }
+
+        function btnClass(type) {
+            const map = {
+                [T.PUSH]: 'btn-push',
+                [T.PULL]: 'btn-pull',
+                [T.LEGS]: 'btn-legs',
+                [T.CORE]: 'btn-core',
+                [T.REST]: 'btn-rest'
+            };
+            return map[type] || 'btn-rest';
+        }
+
+        function resetToday() {
+            const all = getAll().filter(t => t.date !== todayStr());
+            saveAll(all);
+            confirming = false;
+            render();
+            updateLog();
+        }
+
+        // ── Cycle visualisation ──────────────────────────────────────────
+        function renderCycle() {
+            const lp = getLastPPL();
+            const lastType = getLastEntry()?.type;
+
+            // Determine position in PPL cycle
+            let pushDone = false, pullDone = false, legsDone = false;
+
+            if (lp) {
+                if (lp.type === T.PUSH) { pushDone = true; }
+                if (lp.type === T.PULL) { pushDone = true; pullDone = true; }
+                if (lp.type === T.LEGS) { pushDone = true; pullDone = true; legsDone = true; }
+            }
+
+            // Next PPL determines "active" highlight
+            const next = lp ? nextPPL(lp.type) : T.PUSH;
+            // If today is already logged as PPL, mark it done
+            const todayEntry = getTodayEntry();
+            if (todayEntry && PPL.includes(todayEntry.type)) {
+                if (todayEntry.type === T.PUSH) pushDone = true;
+                if (todayEntry.type === T.PULL) { pushDone = true; pullDone = true; }
+                if (todayEntry.type === T.LEGS) { pushDone = true; pullDone = true; legsDone = true; }
+            }
+
+            function cls(t) {
+                if (t === next && !todayEntry) return 'cycle-item next';
+                if ((t === T.PUSH && pushDone) || (t === T.PULL && pullDone) || (t === T.LEGS && legsDone)) return 'cycle-item done';
+                return 'cycle-item';
+            }
+
+            return `
+                <div class="cycle-row">
+                    <div class="${cls(T.PUSH)}">Push</div>
+                    <div class="${cls(T.PULL)}">Pull</div>
+                    <div class="${cls(T.LEGS)}">Legs</div>
+                </div>
+            `;
+        }
+
+        // ── Log view ─────────────────────────────────────────────────────
         function updateLog() {
-            const ts = getT();
+            const all = getAll();
             const lc = document.getElementById('logContent');
 
-            if (ts.length === 0) {
-                lc.innerHTML = '<p style="text-align:center;color:#999;padding:20px">Noch keine Trainings</p>';
+            if (!all.length) {
+                lc.innerHTML = '<p style="text-align:center;color:#999;padding:20px">Noch keine Einträge</p>';
                 return;
             }
 
             const days = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
             let h = '';
 
-            ts.slice(0, 14).forEach(t => {
+            all.slice(0, 21).forEach(t => {
                 const d = new Date(t.date);
-                h += `<p style="padding:10px;border-bottom:1px solid #eee">${days[d.getDay()]} ${d.getDate()}.${d.getMonth() + 1}. - ${t.type}</p>`;
+                h += `
+                    <div class="log-entry">
+                        <div class="log-dot" style="background:${COLOR[t.type]}"></div>
+                        <div class="log-date">${days[d.getDay()]} ${d.getDate()}.${d.getMonth() + 1}.</div>
+                        <div class="log-type">${t.type}</div>
+                    </div>
+                `;
             });
 
             lc.innerHTML = h;
         }
 
-        // View switching
+        // ── Navigation ───────────────────────────────────────────────────
         function showView(v) {
             document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -312,7 +456,7 @@
             if (v === 'decision') {
                 document.getElementById('decisionView').classList.add('active');
                 document.querySelectorAll('.nav-btn')[0].classList.add('active');
-                step = 1;
+                confirming = false;
                 render();
             } else {
                 document.getElementById('logView').classList.add('active');
@@ -321,29 +465,21 @@
             }
         }
 
-        // Offline detection
+        // ── Offline ──────────────────────────────────────────────────────
         function updateOnlineStatus() {
-            const indicator = document.getElementById('offlineIndicator');
-            if (!navigator.onLine) {
-                indicator.classList.add('show');
-            } else {
-                indicator.classList.remove('show');
-            }
+            document.getElementById('offlineIndicator').classList.toggle('show', !navigator.onLine);
         }
-
         window.addEventListener('online', updateOnlineStatus);
         window.addEventListener('offline', updateOnlineStatus);
 
-        // Service Worker Registration
+        // ── Service Worker ───────────────────────────────────────────────
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('Service Worker registered'))
-                    .catch(err => console.log('Service Worker registration failed:', err));
+                navigator.serviceWorker.register('sw.js').catch(() => {});
             });
         }
 
-        // Initialize
+        // ── Init ─────────────────────────────────────────────────────────
         render();
         updateLog();
         updateOnlineStatus();
