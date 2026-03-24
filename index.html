@@ -3,18 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Training">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#4CAF50">
-    <meta name="description" content="Training Tracker - PPL">
-
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/icon.svg">
     <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
-
     <title>Training Tracker</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -32,122 +28,144 @@
             background: white;
             border-radius: 12px;
             padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
-        h1 { font-size: 28px; margin-bottom: 20px; color: #333; }
-        h2 { font-size: 20px; margin-bottom: 15px; color: #555; }
-        .info-box {
-            padding: 15px;
+        h1 { font-size: 26px; margin-bottom: 20px; color: #222; }
+        h2 { font-size: 18px; margin-bottom: 14px; color: #444; }
+        .label-sm { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #aaa; margin: 14px 0 6px; text-transform: uppercase; }
+
+        /* Alert box */
+        .alert-box {
+            padding: 12px 14px;
             border-radius: 8px;
-            margin-bottom: 15px;
-            border-left: 4px solid #4CAF50;
-            background: #e8f5e9;
-        }
-        .info-box.warn {
-            background: #fff3e0;
-            border-left-color: #FF9800;
-        }
-        .info-box.alert {
+            margin-bottom: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            border-left: 4px solid #e91e63;
             background: #fce4ec;
-            border-left-color: #e91e63;
+            color: #880e4f;
         }
-        .info-box p { font-size: 15px; line-height: 1.5; }
+
+        /* Training buttons */
         .btn {
-            display: block;
-            width: 100%;
-            padding: 15px;
-            margin: 8px 0;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
+            display: block; width: 100%;
+            padding: 14px 16px;
+            margin: 6px 0;
+            border: none; border-radius: 10px;
+            font-size: 15px; font-weight: 600;
             cursor: pointer;
             transition: transform 0.1s, opacity 0.1s;
             -webkit-appearance: none;
             text-align: left;
+            position: relative;
         }
-        .btn:active { transform: scale(0.98); opacity: 0.9; }
-        .btn-push   { background: #1976D2; color: white; }
-        .btn-pull   { background: #7B1FA2; color: white; }
-        .btn-legs   { background: #388E3C; color: white; }
-        .btn-core   { background: #F57C00; color: white; }
-        .btn-rest   { background: #9E9E9E; color: white; }
-        .btn-back   { background: #eeeeee; color: #333; margin-top: 15px; }
-        .btn span.label { font-size: 12px; font-weight: 400; display: block; opacity: 0.85; margin-top: 2px; }
-        .cycle-row {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 15px;
+        .btn:active { transform: scale(0.98); opacity: 0.88; }
+        .btn .sub { font-size: 12px; font-weight: 400; opacity: 0.8; display: block; margin-top: 2px; }
+        .btn .badge {
+            position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+            font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+            background: rgba(255,255,255,0.25); color: white;
+            padding: 2px 7px; border-radius: 20px;
         }
+        .btn-push { background: #1976D2; color: white; }
+        .btn-pull { background: #7B1FA2; color: white; }
+        .btn-legs { background: #388E3C; color: white; }
+        .btn-core { background: #F57C00; color: white; }
+        .btn-rest { background: #9E9E9E; color: white; }
+        .btn-ghost { background: #f0f0f0; color: #444; }
+
+        /* Cycle indicator */
+        .cycle-row { display: flex; gap: 6px; margin-bottom: 16px; }
         .cycle-item {
-            flex: 1;
-            text-align: center;
-            padding: 10px 4px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            background: #f0f0f0;
-            color: #999;
+            flex: 1; text-align: center;
+            padding: 9px 4px; border-radius: 8px;
+            font-size: 12px; font-weight: 600;
+            background: #f0f0f0; color: #bbb;
         }
         .cycle-item.done { background: #c8e6c9; color: #2e7d32; }
         .cycle-item.next { background: #1976D2; color: white; }
+
+        /* Done card */
+        .done-chip {
+            display: inline-block;
+            padding: 10px 18px; border-radius: 30px;
+            font-size: 18px; font-weight: 700; color: white;
+            margin-bottom: 14px;
+        }
+
+        /* Nav */
         .nav {
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            background: white;
-            display: flex;
-            box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: white; display: flex;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
             padding-bottom: env(safe-area-inset-bottom, 0px);
         }
         .nav-btn {
-            flex: 1;
-            padding: 15px;
-            border: none;
-            background: white;
-            font-size: 14px;
-            cursor: pointer;
+            flex: 1; padding: 15px; border: none;
+            background: white; font-size: 14px; cursor: pointer;
             -webkit-appearance: none;
         }
         .nav-btn.active { background: #4CAF50; color: white; font-weight: 600; }
         .view { display: none; }
         .view.active { display: block; }
+
+        /* Log */
         .log-entry {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 0;
-            border-bottom: 1px solid #eee;
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 0; border-bottom: 1px solid #f0f0f0;
         }
-        .log-dot {
-            width: 12px; height: 12px;
-            border-radius: 50%;
-            flex-shrink: 0;
+        .log-entry:last-child { border-bottom: none; }
+        .log-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .log-date { font-size: 13px; color: #999; min-width: 65px; }
+        .log-type { font-size: 15px; font-weight: 500; flex: 1; }
+        .log-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .icon-btn {
+            width: 32px; height: 32px; border: none; border-radius: 6px;
+            cursor: pointer; font-size: 15px; display: flex;
+            align-items: center; justify-content: center;
+            background: #f0f0f0; color: #666;
+            -webkit-appearance: none;
         }
-        .log-date { font-size: 13px; color: #888; min-width: 70px; }
-        .log-type { font-size: 15px; font-weight: 500; }
-        .offline-indicator {
-            display: none;
-            background: #f44336;
-            color: white;
-            text-align: center;
-            padding: 8px;
-            font-size: 12px;
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            z-index: 1000;
+        .icon-btn:active { opacity: 0.7; }
+        .icon-btn.del { background: #fce4ec; color: #c62828; }
+
+        /* Inline edit row */
+        .edit-row {
+            display: flex; flex-wrap: wrap; gap: 6px;
+            padding: 10px 0 6px; border-bottom: 1px solid #f0f0f0;
         }
-        .offline-indicator.show { display: block; }
+        .edit-chip {
+            padding: 6px 12px; border: none; border-radius: 20px;
+            font-size: 13px; font-weight: 600; color: white; cursor: pointer;
+            -webkit-appearance: none;
+        }
+        .edit-chip:active { opacity: 0.8; }
+        .edit-cancel {
+            padding: 6px 12px; border: none; border-radius: 20px;
+            font-size: 13px; background: #eee; color: #555; cursor: pointer;
+            -webkit-appearance: none;
+        }
+
+        /* Offline */
+        .offline-bar {
+            display: none; background: #f44336; color: white;
+            text-align: center; padding: 7px; font-size: 12px;
+            position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+        }
+        .offline-bar.show { display: block; }
     </style>
 </head>
 <body>
-    <div class="offline-indicator" id="offlineIndicator">Offline – Daten lokal gespeichert</div>
+    <div class="offline-bar" id="offlineBar">Offline – Daten lokal gespeichert</div>
 
     <div class="container">
-        <h1>Training Tracker <span style="font-size:14px;font-weight:400;color:#aaa">v2.0</span></h1>
+        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#bbb">v2.1</span></h1>
+
         <div id="decisionView" class="view active">
             <div class="card" id="decisionCard"></div>
         </div>
+
         <div id="logView" class="view">
             <div class="card">
                 <h2>Log</h2>
@@ -162,301 +180,201 @@
     </div>
 
     <script>
-        // ── Training types ──────────────────────────────────────────────
-        const T = {
-            PUSH: 'Push',
-            PULL: 'Pull',
-            LEGS: 'Legs',
-            CORE: 'BP-Cardio',
-            REST: 'Pause'
-        };
-
+        const T = { PUSH:'Push', PULL:'Pull', LEGS:'Legs', CORE:'BP-Cardio', REST:'Pause' };
+        const ALL_TYPES = [T.PUSH, T.PULL, T.LEGS, T.CORE, T.REST];
         const PPL = [T.PUSH, T.PULL, T.LEGS];
 
         const COLOR = {
-            [T.PUSH]: '#1976D2',
-            [T.PULL]: '#7B1FA2',
-            [T.LEGS]: '#388E3C',
-            [T.CORE]: '#F57C00',
-            [T.REST]: '#9E9E9E'
+            [T.PUSH]:'#1976D2', [T.PULL]:'#7B1FA2', [T.LEGS]:'#388E3C',
+            [T.CORE]:'#F57C00', [T.REST]:'#9E9E9E'
         };
-
         const SUB = {
-            [T.PUSH]: 'Brust · Schultern · Trizeps',
-            [T.PULL]: 'Rücken · Bizeps',
-            [T.LEGS]: 'Beine · Gesäß',
-            [T.CORE]: 'Bauch, Po + leichtes Cardio',
-            [T.REST]: 'Erholung'
+            [T.PUSH]:'Brust · Schultern · Trizeps',
+            [T.PULL]:'Rücken · Bizeps',
+            [T.LEGS]:'Beine · Gesäß',
+            [T.CORE]:'Bauch · Po · leichtes Cardio',
+            [T.REST]:'Erholung'
+        };
+        const BTN_CLS = {
+            [T.PUSH]:'btn-push', [T.PULL]:'btn-pull', [T.LEGS]:'btn-legs',
+            [T.CORE]:'btn-core', [T.REST]:'btn-rest'
         };
 
-        // ── Storage ─────────────────────────────────────────────────────
+        // ── Storage ──────────────────────────────────────────────────────
         function getAll() {
-            const d = localStorage.getItem('ppl_log');
-            return d ? JSON.parse(d) : [];
+            try { return JSON.parse(localStorage.getItem('ppl_log') || '[]'); } catch { return []; }
         }
-
-        function saveAll(arr) {
-            localStorage.setItem('ppl_log', JSON.stringify(arr));
-        }
-
-        function todayStr() {
-            return new Date().toISOString().split('T')[0];
-        }
-
-        function getTodayEntry() {
-            return getAll().find(t => t.date === todayStr());
-        }
-
-        function getLastEntry() {
-            // Most recent entry regardless of date
-            return getAll()[0] || null;
-        }
-
-        function getLastPPL() {
-            return getAll().find(t => PPL.includes(t.type)) || null;
-        }
-
-        function nextPPL(type) {
-            const i = PPL.indexOf(type);
-            return PPL[(i + 1) % PPL.length];
-        }
+        function saveAll(a) { localStorage.setItem('ppl_log', JSON.stringify(a)); }
+        function todayStr() { return new Date().toISOString().split('T')[0]; }
+        function getTodayEntry() { return getAll().find(t => t.date === todayStr()) || null; }
+        function getLastEntry() { return getAll()[0] || null; }
+        function getLastPPL() { return getAll().find(t => PPL.includes(t.type)) || null; }
+        function nextPPL(type) { return PPL[(PPL.indexOf(type) + 1) % PPL.length]; }
 
         function logTraining(type) {
             const today = todayStr();
             const all = getAll().filter(t => t.date !== today);
             all.unshift({ date: today, type, ts: Date.now() });
             saveAll(all);
-            render();
-            updateLog();
+            render(); updateLog();
         }
 
-        // ── Recommendation logic ─────────────────────────────────────────
-        // Rules:
-        //  - After LEGS: next must be PUSH (or REST) – never CORE
-        //  - PPL cycle: Push → Pull → Legs → Push …
-        //  - CORE fits between any two PPL sessions EXCEPT after LEGS
-        //  - Only 1 rest day per week
+        // ── Recommendation ───────────────────────────────────────────────
         function getRecommendation() {
-            const lastEntry = getLastEntry();
-            const lastPPLEntry = getLastPPL();
-
-            if (!lastEntry) {
-                return { primary: T.PUSH, alt: [], note: 'Starte deinen ersten Zyklus!' };
-            }
-
-            const last = lastEntry.type;
-            const lp = lastPPLEntry ? lastPPLEntry.type : T.LEGS; // treat as if last PPL was Legs → so next is Push
-
-            switch (last) {
-                case T.LEGS:
-                    return {
-                        primary: T.PUSH,
-                        alt: [T.REST],
-                        note: 'Nach Legs: direkt zu Push – kein Bauch/Po-Training!',
-                        warn: true
-                    };
-
-                case T.PUSH:
-                    return {
-                        primary: T.CORE,
-                        alt: [T.PULL],
-                        note: 'Kurze Core-Einheit oder direkt zu Pull.'
-                    };
-
-                case T.PULL:
-                    return {
-                        primary: T.CORE,
-                        alt: [T.LEGS],
-                        note: 'Kurze Core-Einheit oder direkt zu Legs.'
-                    };
-
-                case T.CORE: {
-                    // After Core: continue PPL cycle from last PPL
-                    const next = nextPPL(lp);
-                    return {
-                        primary: next,
-                        alt: [],
-                        note: `Weiter im Zyklus: ${next}.`
-                    };
-                }
-
-                case T.REST: {
-                    const next = nextPPL(lp);
-                    return {
-                        primary: next,
-                        alt: [T.CORE],
-                        note: 'Erholt? Weiter mit dem Plan.'
-                    };
-                }
-
-                default:
-                    return { primary: T.PUSH, alt: [], note: '' };
-            }
+            const last = getLastEntry();
+            const lp = getLastPPL();
+            if (!last) return { primary: T.PUSH, warn: false };
+            const ltype = last.type;
+            const lptype = lp ? lp.type : T.LEGS;
+            if (ltype === T.LEGS)  return { primary: T.PUSH, warn: true };
+            if (ltype === T.PUSH)  return { primary: T.CORE, warn: false };
+            if (ltype === T.PULL)  return { primary: T.CORE, warn: false };
+            if (ltype === T.CORE)  return { primary: nextPPL(lptype), warn: false };
+            if (ltype === T.REST)  return { primary: nextPPL(lptype), warn: false };
+            return { primary: T.PUSH, warn: false };
         }
 
-        // ── Render today view ────────────────────────────────────────────
-        let confirming = false;
-
+        // ── Today view ───────────────────────────────────────────────────
         function render() {
             const card = document.getElementById('decisionCard');
-            const todayEntry = getTodayEntry();
+            const today = getTodayEntry();
+            const rec = getRecommendation();
 
-            if (todayEntry) {
-                // Already logged today
-                card.innerHTML = `
-                    <h2>Heute erledigt</h2>
-                    <div class="info-box" style="border-left-color:${COLOR[todayEntry.type]}">
-                        <p><strong>${todayEntry.type}</strong></p>
-                        <p style="font-size:13px;color:#666;margin-top:4px">${SUB[todayEntry.type]}</p>
-                    </div>
-                    ${renderCycle()}
-                    <button class="btn btn-back" onclick="resetToday()">Eintrag ändern</button>
-                `;
-                return;
-            }
+            let h = '';
 
-            if (!confirming) {
-                // Step 1: decide if training today
-                card.innerHTML = `
-                    <h2>Trainiere ich heute?</h2>
+            if (today) {
+                h += `<h2>Heute erledigt</h2>
+                    <div class="done-chip" style="background:${COLOR[today.type]}">${today.type}</div>
+                    <p style="font-size:13px;color:#999;margin-bottom:16px">${SUB[today.type]}</p>
                     ${renderCycle()}
-                    <button class="btn btn-rest" onclick="logTraining('${T.REST}')">Nein – Pause</button>
-                    <button class="btn btn-push" style="background:#4CAF50" onclick="confirming=true;render()">Ja, ich trainiere</button>
-                `;
+                    <button class="btn btn-ghost" onclick="resetToday()">Eintrag ändern</button>`;
             } else {
-                // Step 2: which workout
-                const rec = getRecommendation();
-                let h = `<h2>Was heute?</h2>`;
+                h += `<h2>Was machst du heute?</h2>${renderCycle()}`;
 
-                // Warning for post-Legs constraint
                 if (rec.warn) {
-                    h += `<div class="info-box alert"><p>${rec.note}</p></div>`;
-                } else if (rec.note) {
-                    h += `<div class="info-box"><p>${rec.note}</p></div>`;
+                    h += `<div class="alert-box">Nach Legs kein BP-Cardio – direkt zu Push!</div>`;
                 }
 
-                h += renderCycle();
-
-                // Primary recommendation
-                const cls = btnClass(rec.primary);
-                h += `
-                    <p style="font-size:12px;color:#888;margin-bottom:6px;margin-top:4px">EMPFOHLEN</p>
-                    <button class="btn ${cls}" onclick="logTraining('${rec.primary}')">
+                // Recommended
+                h += `<div class="label-sm">Empfohlen</div>
+                    <button class="btn ${BTN_CLS[rec.primary]}" onclick="logTraining('${rec.primary}')">
                         ${rec.primary}
-                        <span class="label">${SUB[rec.primary]}</span>
-                    </button>
-                `;
+                        <span class="sub">${SUB[rec.primary]}</span>
+                        <span class="badge">✓ Plan</span>
+                    </button>`;
 
-                // Alt options
-                if (rec.alt.length) {
-                    h += `<p style="font-size:12px;color:#888;margin:10px 0 6px">ALTERNATIV</p>`;
-                    rec.alt.forEach(t => {
-                        h += `<button class="btn ${btnClass(t)}" onclick="logTraining('${t}')">
-                            ${t}
-                            <span class="label">${SUB[t]}</span>
-                        </button>`;
-                    });
-                }
-
-                h += `<button class="btn btn-back" onclick="confirming=false;render()">Zurück</button>`;
-                card.innerHTML = h;
+                // All other options
+                const others = ALL_TYPES.filter(t => t !== rec.primary);
+                h += `<div class="label-sm">Andere Option</div>`;
+                others.forEach(t => {
+                    const disabled = rec.warn && t === T.CORE;
+                    h += `<button class="btn ${BTN_CLS[t]}" onclick="logTraining('${t}')"
+                        ${disabled ? 'style="opacity:0.35;pointer-events:none"' : ''}>
+                        ${t}
+                        <span class="sub">${SUB[t]}</span>
+                        ${disabled ? '<span class="badge">gesperrt</span>' : ''}
+                    </button>`;
+                });
             }
-        }
 
-        function btnClass(type) {
-            const map = {
-                [T.PUSH]: 'btn-push',
-                [T.PULL]: 'btn-pull',
-                [T.LEGS]: 'btn-legs',
-                [T.CORE]: 'btn-core',
-                [T.REST]: 'btn-rest'
-            };
-            return map[type] || 'btn-rest';
+            card.innerHTML = h;
         }
 
         function resetToday() {
             const all = getAll().filter(t => t.date !== todayStr());
             saveAll(all);
-            confirming = false;
-            render();
-            updateLog();
+            render(); updateLog();
         }
 
-        // ── Cycle visualisation ──────────────────────────────────────────
+        // ── Cycle indicator ──────────────────────────────────────────────
         function renderCycle() {
             const lp = getLastPPL();
-            const lastType = getLastEntry()?.type;
-
-            // Determine position in PPL cycle
-            let pushDone = false, pullDone = false, legsDone = false;
-
-            if (lp) {
-                if (lp.type === T.PUSH) { pushDone = true; }
-                if (lp.type === T.PULL) { pushDone = true; pullDone = true; }
-                if (lp.type === T.LEGS) { pushDone = true; pullDone = true; legsDone = true; }
-            }
-
-            // Next PPL determines "active" highlight
+            const today = getTodayEntry();
             const next = lp ? nextPPL(lp.type) : T.PUSH;
-            // If today is already logged as PPL, mark it done
-            const todayEntry = getTodayEntry();
-            if (todayEntry && PPL.includes(todayEntry.type)) {
-                if (todayEntry.type === T.PUSH) pushDone = true;
-                if (todayEntry.type === T.PULL) { pushDone = true; pullDone = true; }
-                if (todayEntry.type === T.LEGS) { pushDone = true; pullDone = true; legsDone = true; }
-            }
 
             function cls(t) {
-                if (t === next && !todayEntry) return 'cycle-item next';
-                if ((t === T.PUSH && pushDone) || (t === T.PULL && pullDone) || (t === T.LEGS && legsDone)) return 'cycle-item done';
+                if (today && today.type === t) return 'cycle-item done';
+                if (lp) {
+                    const li = PPL.indexOf(lp.type);
+                    const ti = PPL.indexOf(t);
+                    if (ti <= li) return 'cycle-item done';
+                }
+                if (t === next && !today) return 'cycle-item next';
                 return 'cycle-item';
             }
 
-            return `
-                <div class="cycle-row">
-                    <div class="${cls(T.PUSH)}">Push</div>
-                    <div class="${cls(T.PULL)}">Pull</div>
-                    <div class="${cls(T.LEGS)}">Legs</div>
-                </div>
-            `;
+            return `<div class="cycle-row">
+                <div class="${cls(T.PUSH)}">Push</div>
+                <div class="${cls(T.PULL)}">Pull</div>
+                <div class="${cls(T.LEGS)}">Legs</div>
+            </div>`;
         }
 
         // ── Log view ─────────────────────────────────────────────────────
+        let editingDate = null;
+
         function updateLog() {
             const all = getAll();
             const lc = document.getElementById('logContent');
-
             if (!all.length) {
-                lc.innerHTML = '<p style="text-align:center;color:#999;padding:20px">Noch keine Einträge</p>';
+                lc.innerHTML = '<p style="text-align:center;color:#ccc;padding:24px 0">Noch keine Einträge</p>';
                 return;
             }
-
-            const days = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+            const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
             let h = '';
-
-            all.slice(0, 21).forEach(t => {
-                const d = new Date(t.date);
-                h += `
-                    <div class="log-entry">
-                        <div class="log-dot" style="background:${COLOR[t.type]}"></div>
-                        <div class="log-date">${days[d.getDay()]} ${d.getDate()}.${d.getMonth() + 1}.</div>
-                        <div class="log-type">${t.type}</div>
+            all.forEach(entry => {
+                const d = new Date(entry.date);
+                const dateLabel = `${days[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}.`;
+                h += `<div class="log-entry">
+                    <div class="log-dot" style="background:${COLOR[entry.type]}"></div>
+                    <div class="log-date">${dateLabel}</div>
+                    <div class="log-type">${entry.type}</div>
+                    <div class="log-actions">
+                        <button class="icon-btn" onclick="startEdit('${entry.date}')" title="Bearbeiten">✎</button>
+                        <button class="icon-btn del" onclick="deleteEntry('${entry.date}')" title="Löschen">✕</button>
                     </div>
-                `;
+                </div>`;
+                if (editingDate === entry.date) {
+                    h += `<div class="edit-row">`;
+                    ALL_TYPES.forEach(t => {
+                        h += `<button class="edit-chip" style="background:${COLOR[t]}"
+                            onclick="applyEdit('${entry.date}','${t}')">${t}</button>`;
+                    });
+                    h += `<button class="edit-cancel" onclick="cancelEdit()">Abbrechen</button></div>`;
+                }
             });
-
             lc.innerHTML = h;
+        }
+
+        function startEdit(date) {
+            editingDate = date;
+            updateLog();
+        }
+        function cancelEdit() {
+            editingDate = null;
+            updateLog();
+        }
+        function applyEdit(date, newType) {
+            const all = getAll().map(e => e.date === date ? { ...e, type: newType } : e);
+            saveAll(all);
+            editingDate = null;
+            updateLog();
+            if (date === todayStr()) render();
+        }
+        function deleteEntry(date) {
+            saveAll(getAll().filter(e => e.date !== date));
+            if (editingDate === date) editingDate = null;
+            updateLog();
+            if (date === todayStr()) render();
         }
 
         // ── Navigation ───────────────────────────────────────────────────
         function showView(v) {
             document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-
             if (v === 'decision') {
                 document.getElementById('decisionView').classList.add('active');
                 document.querySelectorAll('.nav-btn')[0].classList.add('active');
-                confirming = false;
                 render();
             } else {
                 document.getElementById('logView').classList.add('active');
@@ -466,23 +384,18 @@
         }
 
         // ── Offline ──────────────────────────────────────────────────────
-        function updateOnlineStatus() {
-            document.getElementById('offlineIndicator').classList.toggle('show', !navigator.onLine);
-        }
-        window.addEventListener('online', updateOnlineStatus);
-        window.addEventListener('offline', updateOnlineStatus);
+        window.addEventListener('online',  () => document.getElementById('offlineBar').classList.remove('show'));
+        window.addEventListener('offline', () => document.getElementById('offlineBar').classList.add('show'));
 
         // ── Service Worker ───────────────────────────────────────────────
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').catch(() => {});
-            });
+            window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
         }
 
         // ── Init ─────────────────────────────────────────────────────────
         render();
         updateLog();
-        updateOnlineStatus();
+        if (!navigator.onLine) document.getElementById('offlineBar').classList.add('show');
     </script>
 </body>
 </html>
