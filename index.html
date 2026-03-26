@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Training">
@@ -160,7 +160,7 @@
     <div class="offline-bar" id="offlineBar">Offline – Daten lokal gespeichert</div>
 
     <div class="container">
-        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#bbb">v2.4</span></h1>
+        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#bbb">v2.5</span></h1>
 
         <div id="decisionView" class="view active">
             <div class="card" id="decisionCard"></div>
@@ -221,6 +221,11 @@
         function getLastEntry() { const t = todayStr(); return getAll().find(e => e.date < t) || null; }
         function getLastPPL() { const t = todayStr(); return getAll().find(e => e.date < t && PPL.includes(e.type)) || null; }
         function nextPPL(type) { return PPL[(PPL.indexOf(type) + 1) % PPL.length]; }
+        function getYesterdayType() {
+            const d = new Date(); d.setDate(d.getDate() - 1);
+            const ys = d.toISOString().split('T')[0];
+            return getAll().find(e => e.date === ys)?.type || null;
+        }
 
         // Die am längsten nicht ausgeführte PPL-Einheit (berücksichtigt übersprungene)
         function getNextPPLType() {
@@ -277,16 +282,26 @@
                     h += `<div class="alert-box">Nach Legs kein BP-Cardio!</div>`;
                 }
 
-                // Recommended
+                // Gestern gemachter Typ ist heute gesperrt (Pause immer verfügbar)
+                const yt = getYesterdayType();
+                const available = ALL_TYPES.filter(t => t === T.REST || t !== yt);
+
+                // Empfehlung anpassen falls gesperrter Typ empfohlen wird
+                let primary = rec.primary;
+                if (!available.includes(primary)) {
+                    primary = available.find(t => t !== T.REST) || T.REST;
+                }
+
+                // Empfohlen
                 h += `<div class="label-sm">Empfohlen</div>
-                    <button class="btn ${BTN_CLS[rec.primary]}" onclick="logTraining('${rec.primary}')">
-                        ${rec.primary}
-                        <span class="sub">${SUB[rec.primary]}</span>
+                    <button class="btn ${BTN_CLS[primary]}" onclick="logTraining('${primary}')">
+                        ${primary}
+                        <span class="sub">${SUB[primary]}</span>
                         <span class="badge">✓ Plan</span>
                     </button>`;
 
-                // All other options
-                const others = ALL_TYPES.filter(t => t !== rec.primary);
+                // Andere verfügbare Optionen (nicht gestern, nicht Empfehlung)
+                const others = available.filter(t => t !== primary);
                 h += `<div class="label-sm">Andere Option</div>`;
                 others.forEach(t => {
                     const disabled = rec.warn && t === T.CORE;
