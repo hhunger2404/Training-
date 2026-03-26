@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Training">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#4CAF50">
+    <meta name="theme-color" content="#4CAF50" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1e1e1e"  media="(prefers-color-scheme: dark)">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/icon.svg">
     <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -154,13 +155,35 @@
             position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
         }
         .offline-bar.show { display: block; }
+
+        /* Dark Mode */
+        @media (prefers-color-scheme: dark) {
+            body            { background: #121212; color: #e0e0e0; }
+            h1              { color: #e0e0e0; }
+            h2              { color: #bbb; }
+            .label-sm       { color: #666; }
+            .card           { background: #1e1e1e; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+            .alert-box      { background: #3a0d1e; color: #f48fb1; border-color: #c2185b; }
+            .btn-ghost      { background: #2a2a2a; color: #ccc; }
+            .cycle-item     { background: #2a2a2a; color: #666; }
+            .cycle-item.done{ background: #1b3a1c; color: #66bb6a; }
+            .nav            { background: #1e1e1e; box-shadow: 0 -2px 8px rgba(0,0,0,0.4); }
+            .nav-btn        { background: #1e1e1e; color: #aaa; }
+            .nav-btn.active { background: #2e7d32; color: white; }
+            .log-entry      { border-bottom-color: #2a2a2a; }
+            .log-date       { color: #666; }
+            .log-type       { color: #e0e0e0; }
+            .icon-btn       { background: #2a2a2a; color: #aaa; }
+            .icon-btn.del   { background: #3a0d0d; color: #ef9a9a; }
+            .edit-cancel    { background: #2a2a2a; color: #aaa; }
+        }
     </style>
 </head>
 <body>
     <div class="offline-bar" id="offlineBar">Offline – Daten lokal gespeichert</div>
 
     <div class="container">
-        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#bbb">v2.6</span></h1>
+        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#888">v2.7</span></h1>
 
         <div id="decisionView" class="view active">
             <div class="card" id="decisionCard"></div>
