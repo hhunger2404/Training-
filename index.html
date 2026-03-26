@@ -160,7 +160,7 @@
     <div class="offline-bar" id="offlineBar">Offline – Daten lokal gespeichert</div>
 
     <div class="container">
-        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#bbb">v2.3</span></h1>
+        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#bbb">v2.4</span></h1>
 
         <div id="decisionView" class="view active">
             <div class="card" id="decisionCard"></div>
@@ -222,6 +222,18 @@
         function getLastPPL() { const t = todayStr(); return getAll().find(e => e.date < t && PPL.includes(e.type)) || null; }
         function nextPPL(type) { return PPL[(PPL.indexOf(type) + 1) % PPL.length]; }
 
+        // Die am längsten nicht ausgeführte PPL-Einheit (berücksichtigt übersprungene)
+        function getNextPPLType() {
+            const today = todayStr();
+            const all = getAll().filter(e => e.date < today);
+            const lastDate = {};
+            PPL.forEach(type => {
+                const e = all.find(e => e.type === type);
+                lastDate[type] = e ? e.date : ''; // '' sortiert vor jedem Datum → nie gemacht = überfällig
+            });
+            return PPL.slice().sort((a, b) => lastDate[a].localeCompare(lastDate[b]))[0];
+        }
+
         function logTraining(type) {
             const today = todayStr();
             const all = getAll().filter(t => t.date !== today);
@@ -233,16 +245,15 @@
         // ── Recommendation ───────────────────────────────────────────────
         function getRecommendation() {
             const last = getLastEntry();
-            const lp = getLastPPL();
             if (!last) return { primary: T.PUSH, warn: false };
             const ltype = last.type;
-            const lptype = lp ? lp.type : T.LEGS;
-            if (ltype === T.LEGS)  return { primary: T.PUSH, warn: true };
-            if (ltype === T.PUSH)  return { primary: T.CORE, warn: false };
-            if (ltype === T.PULL)  return { primary: T.CORE, warn: false };
-            if (ltype === T.CORE)  return { primary: nextPPL(lptype), warn: false };
-            if (ltype === T.REST)  return { primary: nextPPL(lptype), warn: false };
-            return { primary: T.PUSH, warn: false };
+            const next = getNextPPLType();
+            // Nach Legs: direkt zur nächsten überfälligen PPL-Einheit, kein BP-Cardio
+            if (ltype === T.LEGS)        return { primary: next, warn: true };
+            // Nach Push/Pull: Erholungstag (BP-Cardio)
+            if (PPL.includes(ltype))     return { primary: T.CORE, warn: false };
+            // Nach BP-Cardio/Pause: nächste überfällige PPL-Einheit
+            return { primary: next, warn: false };
         }
 
         // ── Today view ───────────────────────────────────────────────────
@@ -263,7 +274,7 @@
                 h += `<h2>Was machst du heute?</h2>${renderCycle()}`;
 
                 if (rec.warn) {
-                    h += `<div class="alert-box">Nach Legs kein BP-Cardio – direkt zu Push!</div>`;
+                    h += `<div class="alert-box">Nach Legs kein BP-Cardio!</div>`;
                 }
 
                 // Recommended
@@ -299,18 +310,24 @@
 
         // ── Cycle indicator ──────────────────────────────────────────────
         function renderCycle() {
-            const lp = getLastPPL();
             const today = getTodayEntry();
-            const next = lp ? nextPPL(lp.type) : T.PUSH;
+            const next = getNextPPLType();
 
-            function cls(t) {
-                if (today && today.type === t) return 'cycle-item done';
-                if (lp) {
-                    const li = PPL.indexOf(lp.type);
-                    const ti = PPL.indexOf(t);
-                    if (ti <= li) return 'cycle-item done';
-                }
-                if (t === next && !today) return 'cycle-item next';
+            // Letztes Datum jeder PPL-Einheit (vor heute)
+            const t = todayStr();
+            const hist = getAll().filter(e => e.date < t);
+            const lastDate = {};
+            PPL.forEach(type => {
+                const e = hist.find(e => e.type === type);
+                lastDate[type] = e ? e.date : '';
+            });
+            const refDate = lastDate[next]; // Datum der überfälligsten Einheit
+
+            function cls(type) {
+                if (today && today.type === type) return 'cycle-item done';
+                // Im aktuellen Zyklus erledigt: wurde nach dem Referenzdatum gemacht
+                if (lastDate[type] > refDate) return 'cycle-item done';
+                if (type === next && !today) return 'cycle-item next';
                 return 'cycle-item';
             }
 
