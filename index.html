@@ -160,7 +160,7 @@
     <div class="offline-bar" id="offlineBar">Offline – Daten lokal gespeichert</div>
 
     <div class="container">
-        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#bbb">v2.5</span></h1>
+        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#bbb">v2.6</span></h1>
 
         <div id="decisionView" class="view active">
             <div class="card" id="decisionCard"></div>
@@ -300,16 +300,19 @@
                         <span class="badge">✓ Plan</span>
                     </button>`;
 
-                // Andere verfügbare Optionen (nicht gestern, nicht Empfehlung)
-                const others = available.filter(t => t !== primary);
+                // Alle anderen Optionen (nicht Empfehlung) – gesperrte verblass anzeigen
+                const others = ALL_TYPES.filter(t => t !== primary);
                 h += `<div class="label-sm">Andere Option</div>`;
                 others.forEach(t => {
-                    const disabled = rec.warn && t === T.CORE;
-                    h += `<button class="btn ${BTN_CLS[t]}" onclick="logTraining('${t}')"
-                        ${disabled ? 'style="opacity:0.35;pointer-events:none"' : ''}>
+                    const blockedYesterday = t !== T.REST && t === yt;
+                    const blockedWarn = rec.warn && t === T.CORE;
+                    const disabled = blockedYesterday || blockedWarn;
+                    const badge = blockedYesterday ? 'gestern' : blockedWarn ? 'gesperrt' : '';
+                    h += `<button class="btn ${BTN_CLS[t]}"
+                        ${disabled ? 'style="opacity:0.35;pointer-events:none"' : `onclick="logTraining('${t}')"`}>
                         ${t}
                         <span class="sub">${SUB[t]}</span>
-                        ${disabled ? '<span class="badge">gesperrt</span>' : ''}
+                        ${badge ? `<span class="badge">${badge}</span>` : ''}
                     </button>`;
                 });
             }
