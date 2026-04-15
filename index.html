@@ -281,6 +281,7 @@
                 });
                 const sorted = Object.values(merged).sort((a, b) => b.date.localeCompare(a.date));
                 localStorage.setItem('ppl_log', JSON.stringify(sorted));
+                pushToSupabase(sorted); // upload any local entries not yet in cloud
                 syncStatus = 'ok'; updateSyncView();
                 render(); updateLog();
             } catch (e) { console.warn('sync failed', e); syncStatus = 'error'; updateSyncView(); }
