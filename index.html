@@ -12,6 +12,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/icon.svg">
     <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <title>Training Tracker</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -156,6 +157,18 @@
         }
         .offline-bar.show { display: block; }
 
+        /* Sync */
+        .sync-id-box { font-family: monospace; font-size: 12px; word-break: break-all;
+            background: #f5f5f5; border-radius: 8px; padding: 12px; flex: 1; line-height: 1.6; color: #555; }
+        .sync-status { font-size: 13px; margin-bottom: 16px; font-weight: 500; }
+        .sync-input { width: 100%; border: 1px solid #ddd; border-radius: 8px;
+            padding: 10px 12px; font-size: 12px; margin-bottom: 8px; font-family: monospace;
+            background: white; color: #333; -webkit-appearance: none; }
+        .sync-divider { height: 1px; background: #f0f0f0; margin: 20px 0; }
+        .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+            background: #333; color: white; padding: 8px 18px; border-radius: 20px;
+            font-size: 13px; z-index: 9999; pointer-events: none; white-space: nowrap; }
+
         /* Dark Mode */
         @media (prefers-color-scheme: dark) {
             body            { background: #121212; color: #e0e0e0; }
@@ -176,6 +189,10 @@
             .icon-btn       { background: #2a2a2a; color: #aaa; }
             .icon-btn.del   { background: #3a0d0d; color: #ef9a9a; }
             .edit-cancel    { background: #2a2a2a; color: #aaa; }
+            .sync-id-box    { background: #2a2a2a; color: #aaa; }
+            .sync-input     { background: #2a2a2a; color: #e0e0e0; border-color: #444; }
+            .sync-divider   { background: #2a2a2a; }
+            .toast          { background: #555; }
         }
     </style>
 </head>
@@ -183,7 +200,7 @@
     <div class="offline-bar" id="offlineBar">Offline – Daten lokal gespeichert</div>
 
     <div class="container">
-        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#888">v2.7</span></h1>
+        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#888">v3.0</span></h1>
 
         <div id="decisionView" class="view active">
             <div class="card" id="decisionCard"></div>
@@ -199,11 +216,16 @@
                 <div id="logContent"></div>
             </div>
         </div>
+
+        <div id="syncView" class="view">
+            <div class="card" id="syncCard"></div>
+        </div>
     </div>
 
     <div class="nav">
         <button class="nav-btn active" onclick="showView('decision')">Heute</button>
         <button class="nav-btn" onclick="showView('log')">Log</button>
+        <button class="nav-btn" onclick="showView('sync')">Sync</button>
     </div>
 
     <script>
@@ -227,16 +249,130 @@
             [T.CORE]:'btn-core', [T.REST]:'btn-rest'
         };
 
+        // ── Supabase ──────────────────────────────────────────────────────
+        const SUPABASE_URL = 'https://rysxgdqrirgiyupffzyd.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_KrbL12Ni8KhRQ4TIGFcwlA_x-jP4zhW';
+        let db = null;
+        let syncStatus = ''; // '' | 'syncing' | 'ok' | 'error'
+
+        function getUserId() {
+            let uid = localStorage.getItem('ppl_user_id');
+            if (!uid) { uid = crypto.randomUUID(); localStorage.setItem('ppl_user_id', uid); }
+            return uid;
+        }
+
+        async function initSupabase() {
+            if (typeof window.supabase === 'undefined') return;
+            db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            await syncFromSupabase();
+        }
+
+        async function syncFromSupabase() {
+            if (!db) return;
+            syncStatus = 'syncing'; updateSyncView();
+            try {
+                const { data, error } = await db.from('training_log')
+                    .select('date, type, ts').eq('user_id', getUserId());
+                if (error) throw error;
+                const merged = {};
+                [...getAll(), ...(data || [])].forEach(e => {
+                    if (!merged[e.date] || e.ts > merged[e.date].ts)
+                        merged[e.date] = { date: e.date, type: e.type, ts: e.ts };
+                });
+                const sorted = Object.values(merged).sort((a, b) => b.date.localeCompare(a.date));
+                localStorage.setItem('ppl_log', JSON.stringify(sorted));
+                syncStatus = 'ok'; updateSyncView();
+                render(); updateLog();
+            } catch (e) { console.warn('sync failed', e); syncStatus = 'error'; updateSyncView(); }
+        }
+
+        async function pushToSupabase(entries) {
+            if (!db || !entries.length) return;
+            try {
+                const rows = entries.map(e => ({
+                    user_id: getUserId(), date: e.date, type: e.type, ts: e.ts
+                }));
+                await db.from('training_log').upsert(rows, { onConflict: 'user_id,date' });
+                syncStatus = 'ok'; updateSyncView();
+            } catch (e) { console.warn('push failed', e); syncStatus = 'error'; updateSyncView(); }
+        }
+
+        async function deleteFromSupabase(date) {
+            if (!db) return;
+            try {
+                await db.from('training_log').delete()
+                    .eq('user_id', getUserId()).eq('date', date);
+            } catch (e) { console.warn('delete failed', e); }
+        }
+
+        async function importUserId() {
+            const newUid = document.getElementById('importIdInput')?.value?.trim();
+            if (!newUid || newUid.length < 10) { showToast('Ungültige Sync-ID'); return; }
+            if (!db) { showToast('Offline'); return; }
+            if (!confirm('Alle lokalen Daten werden überschrieben. Fortfahren?')) return;
+            localStorage.setItem('ppl_user_id', newUid);
+            localStorage.setItem('ppl_log', '[]');
+            await syncFromSupabase();
+            const n = getAll().length;
+            showToast(n > 0 ? `${n} Einträge importiert ✓` : 'Keine Daten gefunden');
+        }
+
+        function updateSyncView() {
+            const card = document.getElementById('syncCard');
+            if (!card) return;
+            const uid = getUserId();
+            const statusText = syncStatus === 'syncing' ? '⏳ Synchronisiert...'
+                : syncStatus === 'ok'    ? '✓ Synchronisiert'
+                : syncStatus === 'error' ? '⚠ Sync-Fehler'
+                : '– Noch nicht synchronisiert';
+            const statusColor = syncStatus === 'ok' ? '#2e7d32'
+                : syncStatus === 'error' ? '#c62828' : '#888';
+            card.innerHTML = `
+                <h2>Cloud Sync</h2>
+                <p class="sync-status" style="color:${statusColor}">${statusText}</p>
+                <p class="label-sm">Deine Sync-ID</p>
+                <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:12px">
+                    <div class="sync-id-box">${uid}</div>
+                    <button class="icon-btn" onclick="copyUserId()" title="Kopieren" style="flex-shrink:0">⎘</button>
+                </div>
+                <button class="btn btn-ghost" onclick="syncFromSupabase()">↻ Jetzt synchronisieren</button>
+                <div class="sync-divider"></div>
+                <p class="label-sm">Neues Gerät einrichten</p>
+                <p style="font-size:12px;color:#999;margin-bottom:10px">Sync-ID vom anderen Gerät eingeben, um Daten zu importieren.</p>
+                <input class="sync-input" id="importIdInput" type="text" placeholder="Sync-ID einfügen…">
+                <button class="btn btn-ghost" onclick="importUserId()">Importieren</button>`;
+        }
+
+        async function copyUserId() {
+            const uid = getUserId();
+            try {
+                await navigator.clipboard.writeText(uid);
+                showToast('Sync-ID kopiert ✓');
+            } catch {
+                // iOS Standalone fallback
+                prompt('Sync-ID (alles auswählen und kopieren):', uid);
+            }
+        }
+
+        function showToast(msg) {
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 2500);
+        }
+
         // ── Storage ──────────────────────────────────────────────────────
         function getAll() {
             try {
                 const data = JSON.parse(localStorage.getItem('ppl_log') || '[]');
-                return data.sort((a, b) => b.date.localeCompare(a.date)); // immer nach Datum sortiert
+                return data.sort((a, b) => b.date.localeCompare(a.date));
             } catch { return []; }
         }
         function saveAll(a) {
             const sorted = [...a].sort((x, y) => y.date.localeCompare(x.date));
             localStorage.setItem('ppl_log', JSON.stringify(sorted));
+            pushToSupabase(sorted);
         }
         function todayStr() { return new Date().toISOString().split('T')[0]; }
         function getTodayEntry() { return getAll().find(t => t.date === todayStr()) || null; }
@@ -344,8 +480,10 @@
         }
 
         function resetToday() {
-            const all = getAll().filter(t => t.date !== todayStr());
-            saveAll(all);
+            const today = todayStr();
+            deleteFromSupabase(today);
+            const sorted = getAll().filter(t => t.date !== today);
+            localStorage.setItem('ppl_log', JSON.stringify(sorted));
             render(); updateLog();
         }
 
@@ -432,10 +570,12 @@
         }
         function applyEdit(oldDate, newType) {
             const newDate = document.getElementById('editDateInput')?.value || oldDate;
+            if (newDate !== oldDate) deleteFromSupabase(oldDate);
             const all = getAll()
                 .filter(e => e.date !== newDate || e.date === oldDate) // remove collision on new date
-                .map(e => e.date === oldDate ? { ...e, date: newDate, type: newType } : e);
-            // re-sort by date desc
+                .map(e => e.date === oldDate
+                    ? { ...e, date: newDate, type: newType, ts: Date.now() }
+                    : e);
             all.sort((a, b) => b.date.localeCompare(a.date));
             saveAll(all);
             editingDate = null;
@@ -443,6 +583,7 @@
             render();
         }
         function deleteEntry(date) {
+            deleteFromSupabase(date);
             saveAll(getAll().filter(e => e.date !== date));
             if (editingDate === date) editingDate = null;
             updateLog();
@@ -492,26 +633,52 @@
                 document.getElementById('decisionView').classList.add('active');
                 document.querySelectorAll('.nav-btn')[0].classList.add('active');
                 render();
-            } else {
+            } else if (v === 'log') {
                 document.getElementById('logView').classList.add('active');
                 document.querySelectorAll('.nav-btn')[1].classList.add('active');
                 updateLog();
+            } else if (v === 'sync') {
+                document.getElementById('syncView').classList.add('active');
+                document.querySelectorAll('.nav-btn')[2].classList.add('active');
+                updateSyncView();
             }
         }
 
         // ── Offline ──────────────────────────────────────────────────────
-        window.addEventListener('online',  () => document.getElementById('offlineBar').classList.remove('show'));
+        window.addEventListener('online', () => {
+            document.getElementById('offlineBar').classList.remove('show');
+            syncFromSupabase();
+        });
         window.addEventListener('offline', () => document.getElementById('offlineBar').classList.add('show'));
 
         // ── Service Worker ───────────────────────────────────────────────
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+                    .then(reg => {
+                        // Check for updates on load and every 60s
+                        reg.update();
+                        setInterval(() => reg.update(), 60000);
+                        // Reload when a new SW takes control
+                        let refreshing = false;
+                        navigator.serviceWorker.addEventListener('controllerchange', () => {
+                            if (!refreshing) { refreshing = true; window.location.reload(); }
+                        });
+                    }).catch(() => {});
+                // Also check on tab focus (covers background PWA wakeup)
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') {
+                        navigator.serviceWorker.ready.then(reg => reg.update()).catch(() => {});
+                    }
+                });
+            });
         }
 
         // ── Init ─────────────────────────────────────────────────────────
         render();
         updateLog();
         if (!navigator.onLine) document.getElementById('offlineBar').classList.add('show');
+        initSupabase();
     </script>
 </body>
 </html>
