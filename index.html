@@ -74,19 +74,19 @@
         .btn-pull { background: #7B1FA2; color: white; }
         .btn-legs { background: #388E3C; color: white; }
         .btn-core { background: #F57C00; color: white; }
-        .btn-rest { background: #9E9E9E; color: white; }
+        .btn-rest { background: #b08080; color: white; }
         .btn-ghost { background: #f0f0f0; color: #444; }
 
-        /* Cycle indicator */
-        .cycle-row { display: flex; gap: 6px; margin-bottom: 16px; }
-        .cycle-item {
-            flex: 1; text-align: center;
-            padding: 9px 4px; border-radius: 8px;
-            font-size: 12px; font-weight: 600;
-            background: #f0f0f0; color: #bbb;
+        /* Last training info */
+        .last-training-box {
+            display: flex; align-items: center; gap: 10px;
+            background: #f0f0f0; border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 16px;
         }
-        .cycle-item.done { background: #c8e6c9; color: #2e7d32; }
-        .cycle-item.next { background: #1976D2; color: white; }
+        .last-training-label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+            text-transform: uppercase; color: #aaa; white-space: nowrap; }
+        .last-training-type { font-size: 14px; font-weight: 700; flex: 1; }
+        .last-training-date { font-size: 12px; color: #999; white-space: nowrap; }
 
         /* Done card */
         .done-chip {
@@ -178,8 +178,8 @@
             .card           { background: #1e1e1e; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
             .alert-box      { background: #3a0d1e; color: #f48fb1; border-color: #c2185b; }
             .btn-ghost      { background: #2a2a2a; color: #ccc; }
-            .cycle-item     { background: #2a2a2a; color: #666; }
-            .cycle-item.done{ background: #1b3a1c; color: #66bb6a; }
+            .last-training-box { background: #2a2a2a; }
+            .last-training-date { color: #666; }
             .nav            { background: #1e1e1e; box-shadow: 0 -2px 8px rgba(0,0,0,0.4); }
             .nav-btn        { background: #1e1e1e; color: #aaa; }
             .nav-btn.active { background: #2e7d32; color: white; }
@@ -235,7 +235,7 @@
 
         const COLOR = {
             [T.PUSH]:'#1976D2', [T.PULL]:'#7B1FA2', [T.LEGS]:'#388E3C',
-            [T.CORE]:'#F57C00', [T.REST]:'#9E9E9E'
+            [T.CORE]:'#F57C00', [T.REST]:'#b08080'
         };
         const SUB = {
             [T.PUSH]:'Brust · Schultern · Trizeps',
@@ -432,10 +432,10 @@
                 h += `<h2>Heute erledigt</h2>
                     <div class="done-chip" style="background:${COLOR[today.type]}">${today.type}</div>
                     <p style="font-size:13px;color:#999;margin-bottom:16px">${SUB[today.type]}</p>
-                    ${renderCycle()}
+                    ${renderLastTraining()}
                     <button class="btn btn-ghost" onclick="resetToday()">Eintrag ändern</button>`;
             } else {
-                h += `<h2>Was machst du heute?</h2>${renderCycle()}`;
+                h += `<h2>Was machst du heute?</h2>${renderLastTraining()}`;
 
                 if (rec.warn) {
                     h += `<div class="alert-box">Nach Legs kein BP-Cardio!</div>`;
@@ -487,33 +487,17 @@
             render(); updateLog();
         }
 
-        // ── Cycle indicator ──────────────────────────────────────────────
-        function renderCycle() {
-            const today = getTodayEntry();
-            const next = getNextPPLType();
-
-            // Letztes Datum jeder PPL-Einheit (vor heute)
-            const t = todayStr();
-            const hist = getAll().filter(e => e.date < t);
-            const lastDate = {};
-            PPL.forEach(type => {
-                const e = hist.find(e => e.type === type);
-                lastDate[type] = e ? e.date : '';
-            });
-            const refDate = lastDate[next]; // Datum der überfälligsten Einheit
-
-            function cls(type) {
-                if (today && today.type === type) return 'cycle-item done';
-                // Im aktuellen Zyklus erledigt: wurde nach dem Referenzdatum gemacht
-                if (lastDate[type] > refDate) return 'cycle-item done';
-                if (type === next && !today) return 'cycle-item next';
-                return 'cycle-item';
-            }
-
-            return `<div class="cycle-row">
-                <div class="${cls(T.PUSH)}">Push</div>
-                <div class="${cls(T.PULL)}">Pull</div>
-                <div class="${cls(T.LEGS)}">Legs</div>
+        // ── Last training info ───────────────────────────────────────────
+        function renderLastTraining() {
+            const last = getLastEntry();
+            if (!last) return '';
+            const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+            const d = new Date(last.date);
+            const dateLabel = `${days[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}.`;
+            return `<div class="last-training-box">
+                <span class="last-training-label">Zuletzt</span>
+                <span class="last-training-type" style="color:${COLOR[last.type]}">${last.type}</span>
+                <span class="last-training-date">${dateLabel}</span>
             </div>`;
         }
 
