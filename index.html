@@ -229,20 +229,21 @@
     </div>
 
     <script>
-        const T = { PUSH:'Push', PULL:'Pull', LEGS:'Legs', CORE:'BP-Cardio', REST:'Pause' };
+        const T = { PUSH:'Push', PULL:'Pull', LEGS:'Legs', CORE:'BP-Cardio', REST:'Pause', FREESTYLE:'Freestyle' };
         const ALL_TYPES = [T.PUSH, T.PULL, T.LEGS, T.CORE, T.REST];
         const PPL = [T.PUSH, T.PULL, T.LEGS];
 
         const COLOR = {
             [T.PUSH]:'#1976D2', [T.PULL]:'#7B1FA2', [T.LEGS]:'#388E3C',
-            [T.CORE]:'#F57C00', [T.REST]:'#9E9E9E'
+            [T.CORE]:'#F57C00', [T.REST]:'#9E9E9E', [T.FREESTYLE]:'#00897B'
         };
         const SUB = {
             [T.PUSH]:'Brust · Schultern · Trizeps',
             [T.PULL]:'Rücken · Bizeps',
             [T.LEGS]:'Beine · Gesäß',
             [T.CORE]:'Bauch · Po · leichtes Cardio',
-            [T.REST]:'Erholung'
+            [T.REST]:'Erholung',
+            [T.FREESTYLE]:'Freie Aktivität · immer möglich'
         };
         const BTN_CLS = {
             [T.PUSH]:'btn-push', [T.PULL]:'btn-pull', [T.LEGS]:'btn-legs',
@@ -378,7 +379,7 @@
         function todayStr() { return new Date().toISOString().split('T')[0]; }
         function getTodayEntry() { return getAll().find(t => t.date === todayStr()) || null; }
         // Empfehlung basiert immer auf Einträgen VOR heute
-        function getLastEntry() { const t = todayStr(); return getAll().find(e => e.date < t) || null; }
+        function getLastEntry() { const t = todayStr(); return getAll().find(e => !e.date.includes('_') && e.date < t) || null; }
         function getLastPPL() { const t = todayStr(); return getAll().find(e => e.date < t && PPL.includes(e.type)) || null; }
         function nextPPL(type) { return PPL[(PPL.indexOf(type) + 1) % PPL.length]; }
         function getYesterdayType() {
@@ -390,13 +391,28 @@
         // Die am längsten nicht ausgeführte PPL-Einheit (berücksichtigt übersprungene)
         function getNextPPLType() {
             const today = todayStr();
-            const all = getAll().filter(e => e.date < today);
+            const all = getAll().filter(e => !e.date.includes('_') && e.date < today);
             const lastDate = {};
             PPL.forEach(type => {
                 const e = all.find(e => e.type === type);
                 lastDate[type] = e ? e.date : ''; // '' sortiert vor jedem Datum → nie gemacht = überfällig
             });
             return PPL.slice().sort((a, b) => lastDate[a].localeCompare(lastDate[b]))[0];
+        }
+
+        function getTodayFreestyle() { return getAll().find(t => t.date === todayStr() + '_fs') || null; }
+        function logFreestyle() {
+            const key = todayStr() + '_fs';
+            const all = getAll().filter(t => t.date !== key);
+            all.unshift({ date: key, type: T.FREESTYLE, ts: Date.now() });
+            saveAll(all);
+            render(); updateLog();
+        }
+        function removeFreestyle() {
+            const key = todayStr() + '_fs';
+            deleteFromSupabase(key);
+            saveAll(getAll().filter(t => t.date !== key));
+            render(); updateLog();
         }
 
         function logTraining(type) {
@@ -429,12 +445,26 @@
 
             let h = '';
 
+            const fsToday = getTodayFreestyle();
+            const fsSection = fsToday
+                ? `<div class="label-sm">Freestyle</div>
+                    <div style="display:flex;align-items:center;gap:8px;margin:6px 0 0">
+                        <div class="done-chip" style="background:${COLOR[T.FREESTYLE]};font-size:14px;padding:8px 14px;margin-bottom:0">Freestyle ✓</div>
+                        <button class="icon-btn del" onclick="removeFreestyle()">✕</button>
+                    </div>`
+                : `<div class="label-sm">Freestyle</div>
+                    <button class="btn" style="background:${COLOR[T.FREESTYLE]};color:white" onclick="logFreestyle()">
+                        ${T.FREESTYLE}
+                        <span class="sub">${SUB[T.FREESTYLE]}</span>
+                    </button>`;
+
             if (today) {
                 h += `<h2>Heute erledigt</h2>
                     <div class="done-chip" style="background:${COLOR[today.type]}">${today.type}</div>
                     <p style="font-size:13px;color:#999;margin-bottom:16px">${SUB[today.type]}</p>
                     ${renderLastTraining()}
-                    <button class="btn btn-ghost" onclick="resetToday()">Eintrag ändern</button>`;
+                    <button class="btn btn-ghost" onclick="resetToday()">Eintrag ändern</button>
+                    ${fsSection}`;
             } else {
                 h += `<h2>Was machst du heute?</h2>${renderLastTraining()}`;
 
@@ -475,6 +505,7 @@
                         ${badge ? `<span class="badge">${badge}</span>` : ''}
                     </button>`;
                 });
+                h += fsSection;
             }
 
             card.innerHTML = h;
@@ -515,14 +546,16 @@
             const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
             let h = '';
             all.forEach(entry => {
-                const d = new Date(entry.date);
+                const calDate = entry.date.split('_')[0];
+                const isFs = entry.date.includes('_fs');
+                const d = new Date(calDate);
                 const dateLabel = `${days[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}.`;
                 h += `<div class="log-entry">
-                    <div class="log-dot" style="background:${COLOR[entry.type]}"></div>
+                    <div class="log-dot" style="background:${COLOR[entry.type] || '#ccc'}"></div>
                     <div class="log-date">${dateLabel}</div>
                     <div class="log-type">${entry.type}</div>
                     <div class="log-actions">
-                        <button class="icon-btn" onclick="startEdit('${entry.date}')" title="Bearbeiten">✎</button>
+                        ${!isFs ? `<button class="icon-btn" onclick="startEdit('${entry.date}')" title="Bearbeiten">✎</button>` : ''}
                         <button class="icon-btn del" onclick="deleteEntry('${entry.date}')" title="Löschen">✕</button>
                     </div>
                 </div>`;
@@ -530,7 +563,7 @@
                     h += `<div class="edit-row" style="flex-direction:column;gap:10px">
                         <div style="display:flex;gap:8px;align-items:center">
                             <label style="font-size:13px;color:#666;white-space:nowrap">Datum:</label>
-                            <input type="date" id="editDateInput" value="${entry.date}"
+                            <input type="date" id="editDateInput" value="${calDate}"
                                 style="border:1px solid #ddd;border-radius:6px;padding:5px 8px;font-size:14px;flex:1">
                         </div>
                         <div style="display:flex;flex-wrap:wrap;gap:6px">`;
