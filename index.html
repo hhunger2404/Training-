@@ -75,7 +75,25 @@
         .btn-legs { background: #388E3C; color: white; }
         .btn-core { background: #F57C00; color: white; }
         .btn-rest { background: #9E9E9E; color: white; }
+        .btn-kraft { background: #D32F2F; color: white; }
+        .btn-cardio { background: #0097A7; color: white; }
         .btn-ghost { background: #f0f0f0; color: #444; }
+
+        /* Mode toggle */
+        .mode-toggle {
+            display: flex; background: #f0f0f0; border-radius: 10px;
+            padding: 4px; margin-bottom: 16px;
+        }
+        .mode-btn {
+            flex: 1; padding: 9px 12px; border: none; background: transparent;
+            border-radius: 7px; font-size: 14px; font-weight: 600; color: #666;
+            cursor: pointer; -webkit-appearance: none;
+            transition: background 0.15s, color 0.15s;
+        }
+        .mode-btn.active {
+            background: white; color: #222;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
 
         /* Last training info */
         .last-training-box {
@@ -178,6 +196,9 @@
             .card           { background: #1e1e1e; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
             .alert-box      { background: #3a0d1e; color: #f48fb1; border-color: #c2185b; }
             .btn-ghost      { background: #2a2a2a; color: #ccc; }
+            .mode-toggle    { background: #2a2a2a; }
+            .mode-btn       { color: #aaa; }
+            .mode-btn.active{ background: #1e1e1e; color: #e0e0e0; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
             .last-training-box { background: #2a2a2a; }
             .last-training-date { color: #666; }
             .nav            { background: #1e1e1e; box-shadow: 0 -2px 8px rgba(0,0,0,0.4); }
@@ -200,7 +221,7 @@
     <div class="offline-bar" id="offlineBar">Offline – Daten lokal gespeichert</div>
 
     <div class="container">
-        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#888">v3.0</span></h1>
+        <h1>Training Tracker <span style="font-size:13px;font-weight:400;color:#888">v4.0</span></h1>
 
         <div id="decisionView" class="view active">
             <div class="card" id="decisionCard"></div>
@@ -229,13 +250,17 @@
     </div>
 
     <script>
-        const T = { PUSH:'Push', PULL:'Pull', LEGS:'Legs', CORE:'BP-Cardio', REST:'Pause', FREESTYLE:'Freestyle' };
+        const T = { PUSH:'Push', PULL:'Pull', LEGS:'Legs', CORE:'BP-Cardio', REST:'Pause', FREESTYLE:'Freestyle', KRAFT:'Krafttraining', CARDIO:'Cardio' };
         const ALL_TYPES = [T.PUSH, T.PULL, T.LEGS, T.CORE, T.REST];
+        const ALL_TYPES_4SPLIT = [T.KRAFT, T.CARDIO, T.REST];
+        const ALL_TYPES_EDIT = [T.PUSH, T.PULL, T.LEGS, T.CORE, T.KRAFT, T.CARDIO, T.REST];
         const PPL = [T.PUSH, T.PULL, T.LEGS];
+        const KC = [T.KRAFT, T.CARDIO];
 
         const COLOR = {
             [T.PUSH]:'#1976D2', [T.PULL]:'#7B1FA2', [T.LEGS]:'#388E3C',
-            [T.CORE]:'#F57C00', [T.REST]:'#9E9E9E', [T.FREESTYLE]:'#00897B'
+            [T.CORE]:'#F57C00', [T.REST]:'#9E9E9E', [T.FREESTYLE]:'#00897B',
+            [T.KRAFT]:'#D32F2F', [T.CARDIO]:'#0097A7'
         };
         const SUB = {
             [T.PUSH]:'Brust · Schultern · Trizeps',
@@ -243,11 +268,14 @@
             [T.LEGS]:'Beine · Gesäß',
             [T.CORE]:'Bauch · Po · leichtes Cardio',
             [T.REST]:'Erholung',
-            [T.FREESTYLE]:'Freie Aktivität · immer möglich'
+            [T.FREESTYLE]:'Freie Aktivität · immer möglich',
+            [T.KRAFT]:'Ganzkörper Kraft',
+            [T.CARDIO]:'Ausdauer'
         };
         const BTN_CLS = {
             [T.PUSH]:'btn-push', [T.PULL]:'btn-pull', [T.LEGS]:'btn-legs',
-            [T.CORE]:'btn-core', [T.REST]:'btn-rest'
+            [T.CORE]:'btn-core', [T.REST]:'btn-rest',
+            [T.KRAFT]:'btn-kraft', [T.CARDIO]:'btn-cardio'
         };
 
         // ── Supabase ──────────────────────────────────────────────────────
@@ -423,6 +451,32 @@
             render(); updateLog();
         }
 
+        // ── Mode (PPL vs 4-Split) ────────────────────────────────────────
+        function getMode() {
+            return localStorage.getItem('ppl_mode') === '4split' ? '4split' : 'ppl';
+        }
+        function getModeSince() {
+            return localStorage.getItem('ppl_mode_since') || '0000-01-01';
+        }
+        function setMode(mode) {
+            if (getMode() === mode) return;
+            localStorage.setItem('ppl_mode', mode);
+            localStorage.setItem('ppl_mode_since', todayStr());
+            render();
+        }
+
+        // Letzter Krafttraining/Cardio-Eintrag seit Modus-Wechsel
+        function getLast4SplitKC() {
+            const today = todayStr();
+            const since = getModeSince();
+            return getAll().find(e =>
+                !e.date.includes('_') &&
+                e.date < today &&
+                e.date >= since &&
+                KC.includes(e.type)
+            ) || null;
+        }
+
         // ── Recommendation ───────────────────────────────────────────────
         function getRecommendation() {
             const last = getLastEntry();
@@ -438,15 +492,17 @@
         }
 
         // ── Today view ───────────────────────────────────────────────────
-        function render() {
-            const card = document.getElementById('decisionCard');
-            const today = getTodayEntry();
-            const rec = getRecommendation();
+        function renderModeToggle() {
+            const m = getMode();
+            return `<div class="mode-toggle">
+                <button class="mode-btn ${m==='ppl'?'active':''}" onclick="setMode('ppl')">PPL</button>
+                <button class="mode-btn ${m==='4split'?'active':''}" onclick="setMode('4split')">4 Split</button>
+            </div>`;
+        }
 
-            let h = '';
-
+        function freestyleSection() {
             const fsToday = getTodayFreestyle();
-            const fsSection = fsToday
+            return fsToday
                 ? `<div class="label-sm">Freestyle</div>
                     <div style="display:flex;align-items:center;gap:8px;margin:6px 0 0">
                         <div class="done-chip" style="background:${COLOR[T.FREESTYLE]};font-size:14px;padding:8px 14px;margin-bottom:0">Freestyle ✓</div>
@@ -457,6 +513,19 @@
                         ${T.FREESTYLE}
                         <span class="sub">${SUB[T.FREESTYLE]}</span>
                     </button>`;
+        }
+
+        function render() {
+            return getMode() === '4split' ? render4Split() : renderPPL();
+        }
+
+        function renderPPL() {
+            const card = document.getElementById('decisionCard');
+            const today = getTodayEntry();
+            const rec = getRecommendation();
+            const fsSection = freestyleSection();
+
+            let h = renderModeToggle();
 
             if (today) {
                 h += `<h2>Heute erledigt</h2>
@@ -498,6 +567,54 @@
                     const blockedWarn = rec.warn && t === T.CORE;
                     const disabled = blockedYesterday || blockedWarn;
                     const badge = blockedYesterday ? 'gestern' : blockedWarn ? 'gesperrt' : '';
+                    h += `<button class="btn ${BTN_CLS[t]}"
+                        ${disabled ? 'style="opacity:0.35;pointer-events:none"' : `onclick="logTraining('${t}')"`}>
+                        ${t}
+                        <span class="sub">${SUB[t]}</span>
+                        ${badge ? `<span class="badge">${badge}</span>` : ''}
+                    </button>`;
+                });
+                h += fsSection;
+            }
+
+            card.innerHTML = h;
+        }
+
+        function render4Split() {
+            const card = document.getElementById('decisionCard');
+            const today = getTodayEntry();
+            const last = getLast4SplitKC();
+            // Empfehlung: Wechsel zum jeweils anderen Typ. Ohne Vorgeschichte: Krafttraining.
+            const primary = last ? (last.type === T.KRAFT ? T.CARDIO : T.KRAFT) : T.KRAFT;
+            const lockedKC = last ? last.type : null; // gleicher K/C-Typ wäre kein Wechsel
+            const fsSection = freestyleSection();
+
+            let h = renderModeToggle();
+
+            if (today) {
+                h += `<h2>Heute erledigt</h2>
+                    <div class="done-chip" style="background:${COLOR[today.type] || '#9E9E9E'}">${today.type}</div>
+                    <p style="font-size:13px;color:#999;margin-bottom:16px">${SUB[today.type] || ''}</p>
+                    ${renderLastTraining()}
+                    <button class="btn btn-ghost" onclick="resetToday()">Eintrag ändern</button>
+                    ${fsSection}`;
+            } else {
+                h += `<h2>Was machst du heute?</h2>${renderLastTraining()}`;
+
+                // Empfohlen
+                h += `<div class="label-sm">Empfohlen</div>
+                    <button class="btn ${BTN_CLS[primary]}" onclick="logTraining('${primary}')">
+                        ${primary}
+                        <span class="sub">${SUB[primary]}</span>
+                        <span class="badge">✓ Wechsel</span>
+                    </button>`;
+
+                // Andere Optionen (Pause + jeweils anderer K/C)
+                const others = ALL_TYPES_4SPLIT.filter(t => t !== primary);
+                h += `<div class="label-sm">Andere Option</div>`;
+                others.forEach(t => {
+                    const disabled = t === lockedKC;
+                    const badge = disabled ? 'kein Wechsel' : '';
                     h += `<button class="btn ${BTN_CLS[t]}"
                         ${disabled ? 'style="opacity:0.35;pointer-events:none"' : `onclick="logTraining('${t}')"`}>
                         ${t}
@@ -567,7 +684,7 @@
                                 style="border:1px solid #ddd;border-radius:6px;padding:5px 8px;font-size:14px;flex:1">
                         </div>
                         <div style="display:flex;flex-wrap:wrap;gap:6px">`;
-                    ALL_TYPES.forEach(t => {
+                    ALL_TYPES_EDIT.forEach(t => {
                         h += `<button class="edit-chip" style="background:${COLOR[t]}"
                             onclick="applyEdit('${entry.date}','${t}')">${t}</button>`;
                     });
@@ -620,7 +737,7 @@
                 </div>
                 <p style="font-size:12px;color:#aaa;margin-bottom:8px">Training auswählen:</p>
                 <div style="display:flex;flex-wrap:wrap;gap:6px">
-                    ${ALL_TYPES.map(t => `<button class="edit-chip" style="background:${COLOR[t]}"
+                    ${ALL_TYPES_EDIT.map(t => `<button class="edit-chip" style="background:${COLOR[t]}"
                         onclick="confirmAdd('${t}')">${t}</button>`).join('')}
                     <button class="edit-cancel" onclick="cancelAdd()">Abbrechen</button>
                 </div>

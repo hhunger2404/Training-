@@ -1,4 +1,4 @@
-const CACHE_NAME = 'training-tracker-v5-sync';
+const CACHE_NAME = 'training-tracker-v6-4split';
 
 // Install - skip waiting immediately
 self.addEventListener('install', event => {
