@@ -460,6 +460,7 @@
         }
         function setMode(mode) {
             if (getMode() === mode) return;
+            if (!confirm('Reset Rules?')) return;
             localStorage.setItem('ppl_mode', mode);
             localStorage.setItem('ppl_mode_since', todayStr());
             render();
